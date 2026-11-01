@@ -35,7 +35,7 @@ export function ProductGallery({
               alt={`${alt} 图 ${index + 1}`}
               fill
               sizes="100vw"
-              className="object-cover"
+              className="object-contain"
               priority={index === 0}
             />
           </div>
@@ -50,7 +50,7 @@ export function ProductGallery({
             alt={`${alt} 图 ${activeIndex + 1}`}
             fill
             sizes="(max-width: 1280px) 50vw, 560px"
-            className="object-cover"
+            className="object-contain"
             priority
           />
         </div>
@@ -75,7 +75,7 @@ export function ProductGallery({
                   alt=""
                   fill
                   sizes="160px"
-                  className="object-cover"
+                  className="object-contain"
                 />
               </button>
             ))}

@@ -3,6 +3,8 @@ import path from "node:path";
 import sharp from "sharp";
 import { productImageFiles, seedProducts } from "../prisma/seed-data";
 
+// 占位图 800×1000 只用于当前 4:5 展示容器，不是商品图规格。
+// 商品图/试穿图规格见 PRD §6.8（JPG/PNG/WebP、≤8MB、≥200×200、不要求比例）。
 const OUTPUT_DIR = path.join(process.cwd(), "public", "products");
 
 function hashHue(input: string): number {

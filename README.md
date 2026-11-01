@@ -117,6 +117,15 @@ public/products/{slug}-2.jpg
 public/products/{slug}-3.jpg
 ```
 
+### 图片规格（沿用旧项目）
+
+- 格式：JPG / PNG / WebP；单张 ≤8MB；最小 200×200；**不要求固定宽高比**（4:5 / 800×1000 不是要求）。
+- 商品图要干净；配饰图不要带模特脸/手。
+- 主图参与 AI 试穿；试穿链路必须原图上传，不压缩、不重编码。
+- 900px / quality 0.85 只用于浏览器预览/localStorage，不得作为 MPS 输入。
+- 人像照片：1 张，全身 / 半身 / 大头均可；格式和大小同上。
+- MPS：`tryon-1.0-lite` + 1K + `identity` 参考图；详细标准见 PRD §6.8。
+
 ### CSV 导入
 
 模板：`data/products-template.csv`

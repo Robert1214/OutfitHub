@@ -25,7 +25,7 @@ export function ProductCard({ product }: { product: ProductListItem }) {
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             className={cn(
-              "object-cover transition-transform duration-300 group-hover:scale-105",
+              "object-contain transition-transform duration-300 group-hover:scale-105",
               sold && "opacity-60 grayscale",
             )}
           />

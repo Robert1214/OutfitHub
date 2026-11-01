@@ -1,6 +1,6 @@
 # CLAUDE.md — outfitexpert-shop 开发规范
 
-> 本文件是开发规范；需求唯一依据是 `memory-bank/prd.md`（v0.3），实施计划是 `memory-bank/plan.md`。
+> 本文件是开发规范；需求唯一依据是 `memory-bank/prd.md`（v0.4），实施计划是 `memory-bank/plan.md`。
 > 开工前先读这三份；与它们冲突时停下提问，不要自行发挥。
 
 ## 1. 项目
@@ -30,7 +30,7 @@
 - `.env.example` 列全变量、不含真实值。
 - 密码 bcrypt（cost ≥ 10）；会话 HttpOnly + Secure + SameSite=Lax。
 - 受保护 API 校验会话；后台校验 `role=ADMIN`；订单/试穿/地址强制 `userId = session.user.id`。
-- 上传：类型白名单、≤8MB、服务端解码校验、文件名随机化。
+- 上传：类型白名单（JPG/PNG/WebP）、单张 ≤8MB、最小 200×200、服务端解码校验、文件名随机化；试穿图不要求固定比例。
 - 用户只看到友好错误；原始错误只进服务端日志。
 
 ### 2.3 数据与库存
@@ -60,7 +60,9 @@
 ### 2.6 AI 试穿
 
 - 必须登录 + 已上传本人照片；购物车勾选 1~4 件。
-- 复用旧项目 MPS 能力：`tryon-1.0-lite` + 1K + identity 参考图；原图上传不压缩。
+- 复用旧项目 MPS 能力，严格按 PRD §6.8：`tryon-1.0-lite` + 1K + `identity` 参考图；原图上传不压缩、不重编码；900px / quality 0.85 仅用于预览/localStorage，不得作为 MPS 输入。
+- 单品类型 `garment` / `accessories` / `shoes`；眼镜、帽子、项链必须 `accessories`，Prompt 用「佩戴」；配饰图不带模特脸/手；Prompt 保留五官/脸型/肤色/发型；不得自行改模型、分辨率或 Prompt 结构。
+- 商品图 / 试穿图：JPG / PNG / WebP、单张 ≤8MB、≥200×200、不要求固定比例；主图作为试穿参考；人像全身/半身/大头均可。
 - 结果存 COS 私有桶；DB 存 key；签名 URL 访问；删除记录同步删 COS。
 - 合身判断是纯函数（`src/lib/size-engine/`），前后端共用：上装/连衣裙/外套用用户身高 + 胸围、成衣胸围 + 版型；下装用用户腰围 + 臀围、成衣腰围 + 臀围 + 版型；输出合身/偏紧/偏松 + 放量 + 建议方向。上装衣长存在时附长度提示；下装裤长仅展示。ACCESSORIES / SHOES 或最低数据缺失不做判断。
 - 试穿项快照存 `refType`、`fitBasis`（`UPPER` / `LOWER` / `NONE`）与商品尺寸，历史记录不随商品修改变化。
@@ -164,6 +166,6 @@ memory-bank/
 
 ## 7. 当前阶段
 
-- 第 1 步：PRD v0.3 已完成（2026-11-02 修订）。
+- 第 1 步：PRD v0.4 已完成（2026-11-02 修订）。
 - 第 2 步：本文件 + `memory-bank/plan.md` 已确认。
 - 第 3 步：M0 已完成（2026-11-02）；下一步 M1 商品浏览/搜索/详情。

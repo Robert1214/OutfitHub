@@ -1,6 +1,6 @@
 # 实施计划 — outfitexpert-shop
 
-> **依据**：`memory-bank/prd.md` v0.3
+> **依据**：`memory-bank/prd.md` v0.4
 > **状态**：M1 已完成（2026-11-02），下一步 M2
 > **规则**：每个里程碑结束必须能运行、能演示、能提交；未通过验收不得进入下一阶段。
 
@@ -324,10 +324,15 @@ outfitexpert-shop/
 
 ### 任务
 
+- [ ] 11.0 图片与 MPS 标准严格沿用旧项目（PRD §6.8）：
+  - 人像 1 张、单品 1~4 张；JPG/PNG/WebP；单张 ≤8MB；≥200×200；不要求固定比例；人像全身/半身/大头均可。
+  - 原图上传，不压缩、不重编码；900px / quality 0.85 只用于预览/localStorage，不得作为 MPS 输入。
+  - `tryon-1.0-lite` + 1K + `identity`；类型 `garment` / `accessories` / `shoes`；配饰 Prompt 用「佩戴」；配饰图不带模特脸/手。
+  - Prompt 保留五官/脸型/肤色/发型；不得自行改模型、分辨率或 Prompt 结构。
 - [ ] 11.1 复用旧项目 `src/lib/tryon/`：`config`、`cos`、`errors`、`image`、`mps`、`run`，按新项目改造。
-- [ ] 11.2 `POST /api/tryon`：登录、照片、1~4 件、`ON_SALE` 校验；创建 `PENDING` 记录，写入 `tryon_record_items` 时快照 `refType`、`fitBasis` 与商品尺寸；商品图/人像上传 COS 临时目录；发起 MPS。
+- [ ] 11.2 `POST /api/tryon`：登录、照片、1~4 件、`ON_SALE` 校验；校验格式/≤8MB/≥200×200；创建 `PENDING` 记录，写入 `tryon_record_items` 时快照 `refType`、`fitBasis` 与商品尺寸；商品图/人像**原图**上传 COS 临时目录；发起 MPS。
 - [ ] 11.3 `GET /api/tryon/[id]`：轮询 MPS；成功后下载结果 → COS 私有桶 → 更新记录 `SUCCEEDED`。
-- [ ] 11.4 `/tryon` 页面：选中商品、照片预览、进度（准备素材/生成中/保存结果）、结果页。
+- [ ] 11.4 `/tryon` 页面：选中商品、照片预览、进度（准备素材/生成中/保存结果）、结果页；上传提示写明 JPG/PNG/WebP、≤8MB、全身/半身/大头均可。
 - [ ] 11.5 合身判断：复用 `size-engine` 的 `canJudgeFit` / `judgeFit` / `lengthPositionHint` 纯函数，按 `fitBasis` 分支：
   - `UPPER`（上装/连衣裙/外套）：用户身高 + 胸围、商品成衣胸围 + 版型齐全时生效；衣长存在时附长度提示。
   - `LOWER`（下装）：用户腰围 + 臀围、商品成衣腰围 + 臀围 + 版型齐全时生效；腰围/臀围分别算放量，任一低于区间 → 偏紧，任一高于区间 → 偏松，否则合身；裤长/裙长仅展示，不判断。
@@ -346,6 +351,8 @@ outfitexpert-shop/
 ### 验收
 
 - 对应 PRD §7.9 全部勾选。
+- 试穿输入为原图，未走 900px 压缩；MPS 参数与旧项目一致（`tryon-1.0-lite` / 1K / identity）。
+- 图片校验：JPG/PNG/WebP、≤8MB、≥200×200；人像全身/半身/大头均可；配饰图不带脸/手。
 - UPPER 身高/胸围 + 成衣胸围/版型齐全才出判断；LOWER 腰围/臀围 + 成衣腰围/臀围/版型齐全才出判断；NONE 不出判断；缺最低数据有「无尺码数据」标注。
 - 上装长度提示仅在合身判断成立且用户身高 + 商品衣长齐全时出现；下装展示裤长/裙长，但不输出长度结论。
 - 结果图带「AI 生成」；失败文案不暴露 MPS 原始错误。
@@ -438,7 +445,7 @@ outfitexpert-shop/
 | 腾讯云密钥 | 旧项目 `.env.local` 已有，确认可复用 | M2 前 |
 | Dify | 账号 + API Key + 知识库资料 | M5 前 |
 | Neon / Vercel | 账号 | M6 前 |
-| 测试素材 | 本人照片 + 身材数据 | M4 前 |
+| 测试素材 | 本人照片（JPG/PNG/WebP、≤8MB、≥200×200，全身/半身/大头均可）+ 身材数据 | M4 前 |
 | PRD 待确认 | §10.2 的 12 条 | M0 前 |
 
 ---
@@ -460,11 +467,12 @@ outfitexpert-shop/
 
 ## 17. 当前进度
 
-- [x] 第 1 步：PRD v0.3（2026-11-02 修订；v0.1 初版 2026-11-01）
+- [x] 第 1 步：PRD v0.4（2026-11-02 修订；v0.1 初版 2026-11-01）
 - [x] 第 2 步：`CLAUDE.md` + `memory-bank/plan.md`
 - [x] 用户确认 plan
 - [x] M0 完成（2026-11-02）
 - [x] 2026-11-02 追加下装尺寸：`waistCm` / `hipCm` / `pantsLengthCm`
 - [x] M1 完成（2026-11-02）
+- [x] 2026-11-02 图片与 MPS 标准沿用旧项目（PRD v0.4）
 - [ ] M2 开始
 - [ ] GitHub 远程仓库（本地 Git 已初始化；远程连接暂缓）
