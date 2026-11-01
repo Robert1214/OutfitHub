@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CartBadge } from "@/components/cart/cart-badge";
 import { DemoBadge } from "./demo-badge";
 
 const navItems = [
@@ -24,9 +25,10 @@ export function SiteHeader() {
             <Link
               key={item.href}
               href={item.href}
-              className="transition-colors hover:text-foreground"
+              className="inline-flex items-center transition-colors hover:text-foreground"
             >
               {item.label}
+              {item.href === "/cart" ? <CartBadge /> : null}
             </Link>
           ))}
         </nav>
