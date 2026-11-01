@@ -1,0 +1,115 @@
+// Prisma schema — M0：用户 / 分类 / 商品 / 商品图
+// 其余表（购物车、地址、订单、试穿、聊天）在 M3/M4/M5 前补。
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum ProductStatus {
+  DRAFT
+  ON_SALE
+  SOLD
+  ARCHIVED
+}
+
+enum RefType {
+  GARMENT
+  ACCESSORIES
+  SHOES
+}
+
+enum FitType {
+  SLIM
+  REGULAR
+  LOOSE
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String?  @unique
+  passwordHash String?
+  phone        String?  @unique
+  name         String?
+  imageKey     String?
+  role         Role     @default(USER)
+  heightCm     Int?
+  weightKg     Int?
+  bustCm       Int?
+  waistCm      Int?
+  hipCm        Int?
+  photoKey     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  slug      String    @unique
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  products  Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id               String        @id @default(cuid())
+  name             String
+  slug             String        @unique
+  refType          RefType
+  description      String
+  priceCents       Int
+  categoryId       String
+  color            String
+  sizeLabel        String?
+  material         String?
+  careInstructions String?
+  tags             String[]      @default([])
+  fitType          FitType?
+  chestCm          Int?
+  lengthCm         Int?
+  shoulderCm       Int?
+  waistCm          Int?
+  hipCm            Int?
+  pantsLengthCm    Int?
+  stock            Int           @default(1)
+  status           ProductStatus @default(DRAFT)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  category Category       @relation(fields: [categoryId], references: [id])
+  images   ProductImage[]
+
+  @@index([status])
+  @@index([categoryId])
+  @@index([refType])
+  @@map("products")
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  url       String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, sortOrder])
+  @@index([productId])
+  @@map("product_images")
+}

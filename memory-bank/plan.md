@@ -1,7 +1,7 @@
 # 实施计划 — outfitexpert-shop
 
-> **依据**：`memory-bank/prd.md` v0.1
-> **状态**：第 2 步产物，待用户确认后进入 M0
+> **依据**：`memory-bank/prd.md` v0.3
+> **状态**：M0 已完成（2026-11-02），下一步 M1
 > **规则**：每个里程碑结束必须能运行、能演示、能提交；未通过验收不得进入下一阶段。
 
 ---
@@ -156,7 +156,7 @@ outfitexpert-shop/
 ### 6.1 Prisma 模型顺序
 
 1. `User`（Auth.js 字段 + 资料 + 身材 + `photoKey`）
-2. `Category`、`Product`、`ProductImage`
+2. `Category`、`Product`（含 `refType`、上装/下装尺寸）、`ProductImage`
 3. `Cart`、`CartItem`
 4. `Address`、`Order`、`OrderItem`
 5. `TryonRecord`、`TryonRecordItem`
@@ -168,9 +168,9 @@ outfitexpert-shop/
 | --- | --- | --- |
 | 管理员 | 1 | `admin@outfitexpert.demo` / `Admin123456` |
 | 测试用户 | 1 | `demo@outfitexpert.demo` / `Demo123456` |
-| 分类 | 4 | 上装 / 下装 / 连衣裙 / 外套 |
-| 商品 | 6~8 | 含 3 图、成衣尺寸、版型；其中 1 件 `SOLD` 用于验收 |
-| 占位图 | 18~24 | `public/products/`，先用纯色/文字占位，后替换真图 |
+| 分类 | 6 | 上装 / 下装 / 连衣裙 / 外套 / 配饰 / 鞋履 |
+| 商品 | 6~9 | 含 `refType`（GARMENT / ACCESSORIES / SHOES 各至少 1 件）、3 图；上装/连衣裙/外套含胸围/衣长/版型，下装含腰围/臀围/裤长/版型，ACCESSORIES/SHOES 尺寸可空；其中 1 件 `SOLD` 用于验收 |
+| 占位图 | 18~27 | `public/products/`，先用纯色/文字占位，后替换真图 |
 
 ### 6.3 商品 CSV 导入模板
 
@@ -180,6 +180,7 @@ outfitexpert-shop/
 | --- | --- | --- |
 | `slug` | 是 | 唯一，URL 用；小写英文/数字/- |
 | `name` | 是 | 商品名 |
+| `ref_type` | 是 | `GARMENT` / `ACCESSORIES` / `SHOES` |
 | `description` | 是 | 描述 |
 | `price_yuan` | 是 | 元，导入时转分 |
 | `category` | 是 | 分类名，不存在则创建 |
@@ -188,13 +189,18 @@ outfitexpert-shop/
 | `material` | 是 | 材质 |
 | `care` | 是 | 护理 |
 | `tags` | 否 | 逗号分隔 |
-| `fit_type` | 是 | `SLIM` / `REGULAR` / `LOOSE` |
-| `chest_cm` | 是 | 成衣胸围（平铺×2） |
-| `length_cm` | 是 | 衣长 |
-| `shoulder_cm` | 否 | 肩宽 |
+| `fit_type` | 否* | `SLIM` / `REGULAR` / `LOOSE`；`ref_type=GARMENT` 时必填 |
+| `chest_cm` | 否* | 成衣胸围（平铺×2）；上装/连衣裙/外套必填 |
+| `length_cm` | 否* | 衣长；上装/连衣裙/外套必填 |
+| `shoulder_cm` | 否 | 肩宽（上装/连衣裙/外套可选） |
+| `waist_cm` | 否* | 成衣腰围（平铺×2）；下装必填 |
+| `hip_cm` | 否* | 成衣臀围（平铺×2）；下装必填 |
+| `pants_length_cm` | 否* | 裤长/裙长；下装必填 |
 | `image1` / `image2` / `image3` | 是 | `public/products/` 下的文件名 |
 
-导入脚本 `prisma/import-products.ts`：校验必填、去重 slug、创建分类/商品/图片，`stock=1`、`status=ON_SALE`；失败逐行报告，不中断整批。
+> *`ref_type=GARMENT` 时 `fit_type` 必填；分类为「下装」时 `waist_cm` / `hip_cm` / `pants_length_cm` 必填，其余 GARMENT 填 `chest_cm` / `length_cm`；`ACCESSORIES` / `SHOES` 尺寸留空即可。
+
+导入脚本 `prisma/import-products.ts`：校验必填与按 `ref_type` / 分类条件必填、去重 slug、创建分类/商品/图片，`stock=1`、`status=ON_SALE`；失败逐行报告，不中断整批。
 
 ---
 
@@ -202,29 +208,32 @@ outfitexpert-shop/
 
 ### 任务
 
-- [ ] 0.1 初始化 Next.js 16 + TS + Tailwind + App Router + `src/`。
-  - 注意：目录已有 `START_HERE.md`、`memory-bank/`，`create-next-app .` 可能拒绝；在临时子目录初始化后合并到根目录，或手动补齐配置。
-- [ ] 0.2 安装依赖：Prisma、Auth.js v5、bcryptjs、zod、腾讯云 SDK、tsx。
-- [ ] 0.3 `npx shadcn@latest init`，按需添加：button、card、input、label、select、dialog、sheet、tabs、table、badge、sonner、form。
-- [ ] 0.4 `docker-compose.yml`：Postgres 16，端口 5432，库 `outfitexpert`，命名卷持久化。
-- [ ] 0.5 `.env.example` + `.env.local`（腾讯云密钥从旧项目复制，**不提交**）。
-- [ ] 0.6 Prisma schema：M0 先建 `User`、`Category`、`Product`、`ProductImage`；其余表 M3/M4 前补。
-- [ ] 0.7 `npx prisma migrate dev --name init`。
-- [ ] 0.8 Seed：管理员 + 测试用户 + 4 分类 + 6~8 商品（含 1 件已售）。
-- [ ] 0.9 商品 CSV 模板 + `prisma/import-products.ts` 导入脚本。
-- [ ] 0.10 全局布局：Header/Footer + 演示标识；首页占位。
-- [ ] 0.11 Auth.js 最小配置（`src/lib/auth.ts` + 路由骨架），完整登录留到 M2。
-- [ ] 0.12 README：环境要求、启动、Docker、迁移、seed、演示账号、目录说明。
-- [ ] 0.13 跑 `npx tsc --noEmit`、`npx eslint src`、`npm run build`。
+- [x] 0.1 初始化 Next.js 16 + TS + Tailwind + App Router + `src/`。
+  - 已在临时子目录初始化后合并到根目录；旧 `START_HERE.md` 已删除。
+- [x] 0.2 安装依赖：Prisma、Auth.js v5、bcryptjs、zod、腾讯云 SDK、tsx。
+- [x] 0.3 `npx shadcn@latest init`，按需添加：button、card、input、label、select、dialog、sheet、tabs、table、badge、sonner。
+  - base-nova 预设未提供 `form` 组件；M2 表单用 Base UI + zod 实现，不阻塞 M0。
+- [x] 0.4 `docker-compose.yml`：Postgres 16，端口 5432，库 `outfitexpert`，命名卷持久化。
+- [x] 0.5 `.env.example` + `.env.local`（腾讯云密钥从旧项目复制，**不提交**）。
+- [x] 0.6 Prisma schema：M0 先建 `User`、`Category`、`Product`（含 `refType`、上装/下装尺寸）、`ProductImage`；其余表 M3/M4 前补。
+  - Prisma 7 使用 `prisma7.config.ts` + `@prisma/adapter-pg`，Client 生成到 `src/generated/prisma/`（不入库）。
+- [x] 0.7 `npx prisma migrate dev --name init`。
+- [x] 0.8 Seed：管理员 + 测试用户 + 6 分类 + 6~9 商品（覆盖上装/下装/配饰/鞋履，含 1 件已售）。
+- [x] 0.9 商品 CSV 模板（含 `ref_type`、`waist_cm`、`hip_cm`、`pants_length_cm`）+ `prisma/import-products.ts` 导入脚本（按品类条件校验）。
+- [x] 0.10 全局布局：Header/Footer + 演示标识；首页占位。
+- [x] 0.11 Auth.js 最小配置（`src/lib/auth.ts` + 路由骨架），完整登录留到 M2。
+- [x] 0.12 README：环境要求、启动、Docker、迁移、seed、演示账号、目录说明。
+- [x] 0.13 跑 `npx tsc --noEmit`、`npx eslint src`、`npm run build`。
+- [x] 0.14（2026-11-02 追加）下装尺寸：`Product` 增加 `waistCm` / `hipCm` / `pantsLengthCm`，迁移 `bottom_measurements`；seed/CSV 增加下装样例。
 
 ### 验收
 
-- [ ] `docker compose up -d` 后 Postgres 可连。
-- [ ] `npx prisma migrate dev` 成功；`npx prisma db seed` 成功。
-- [ ] 数据库能查到 6~8 件商品，含成衣尺寸。
-- [ ] `npm run dev` 首页可打开，页脚有演示标识。
-- [ ] `npm run build` 通过。
-- [ ] `.env.local` 未被提交；`.env.example` 完整。
+- [x] `docker compose up -d` 后 Postgres 可连。
+- [x] `npx prisma migrate dev` 成功；`npx prisma db seed` 成功。
+- [x] 数据库能查到 6~9 件商品；上装/连衣裙/外套含胸围/衣长，下装含腰围/臀围/裤长，ACCESSORIES / SHOES 尺寸为空。
+- [x] `npm run dev` 首页可打开，页脚有演示标识。
+- [x] `npm run build` 通过。
+- [x] `.env.local` 未被提交；`.env.example` 完整。
 
 ### 提交
 
@@ -236,10 +245,10 @@ outfitexpert-shop/
 
 ### 任务
 
-- [ ] 1.1 商品查询函数：`q`、分类、颜色、版型、价格区间、排序、分页（12/页）、是否含已售。
+- [ ] 1.1 商品查询函数：`q`、分类、颜色、版型（仅 GARMENT）、价格区间、排序、分页（12/页）、是否含已售。
 - [ ] 1.2 首页：品牌区、8 件推荐（`ON_SALE`）、分类入口、搜索框。
 - [ ] 1.3 列表页：筛选侧栏（移动端抽屉）、排序、分页、URL query 同步、空结果。
-- [ ] 1.4 详情页：3 图轮播、描述、材质/护理、标签、成衣尺寸表、库存状态。
+- [ ] 1.4 详情页：3 图轮播、描述、材质/护理、标签、库存状态；成衣尺寸表按品类展示：上装/连衣裙/外套胸围/衣长/肩宽/版型，下装腰围/臀围/裤长/版型。
 - [ ] 1.5 加入购物车（M1 先 localStorage）：重复加购提示、角标更新。
 - [ ] 1.6 售罄状态：按钮置灰、列表默认隐藏、可切换显示。
 - [ ] 1.7 响应式：375px / 768px / 1280px 检查。
@@ -314,10 +323,19 @@ outfitexpert-shop/
 ### 任务
 
 - [ ] 11.1 复用旧项目 `src/lib/tryon/`：`config`、`cos`、`errors`、`image`、`mps`、`run`，按新项目改造。
-- [ ] 11.2 `POST /api/tryon`：登录、照片、1~4 件、`ON_SALE` 校验；创建 `PENDING` 记录；商品图/人像上传 COS 临时目录；发起 MPS。
+- [ ] 11.2 `POST /api/tryon`：登录、照片、1~4 件、`ON_SALE` 校验；创建 `PENDING` 记录，写入 `tryon_record_items` 时快照 `refType`、`fitBasis` 与商品尺寸；商品图/人像上传 COS 临时目录；发起 MPS。
 - [ ] 11.3 `GET /api/tryon/[id]`：轮询 MPS；成功后下载结果 → COS 私有桶 → 更新记录 `SUCCEEDED`。
 - [ ] 11.4 `/tryon` 页面：选中商品、照片预览、进度（准备素材/生成中/保存结果）、结果页。
-- [ ] 11.5 合身判断：复用 `size-engine` 纯函数；覆盖有胸围/缺胸围/缺衣长/全空 4 类；不输出 S/M/L。
+- [ ] 11.5 合身判断：复用 `size-engine` 的 `canJudgeFit` / `judgeFit` / `lengthPositionHint` 纯函数，按 `fitBasis` 分支：
+  - `UPPER`（上装/连衣裙/外套）：用户身高 + 胸围、商品成衣胸围 + 版型齐全时生效；衣长存在时附长度提示。
+  - `LOWER`（下装）：用户腰围 + 臀围、商品成衣腰围 + 臀围 + 版型齐全时生效；腰围/臀围分别算放量，任一低于区间 → 偏紧，任一高于区间 → 偏松，否则合身；裤长/裙长仅展示，不判断。
+  - `NONE`（ACCESSORIES/SHOES）不判断；对应最低数据缺失标注「无尺码数据，请以实物为准」。
+  - 覆盖上装/下装的有数据、缺数据、全空用例；不输出 S/M/L。
+  - 下装放量建议值：腰围 紧身 0~2 / 合身 2~4 / 宽松 4~8cm；臀围 紧身 2~4 / 合身 4~8 / 宽松 8~12cm，M4 联调可调。
+  - 旧引擎字段映射：
+    - `fitType`：`SLIM` / `REGULAR` / `LOOSE` ↔ 「紧身」 / 「合身」 / 「宽松」，集中映射，DB 不存中文；新项目 GARMENT 必填 `fitType`，不使用旧引擎「缺省合身」。
+    - `refType`：`GARMENT` / `ACCESSORIES` / `SHOES` → MPS ImageSet `garment` / `accessories` / `shoes`（旧项目 `GARMENT_REF_TYPES` 为小写）。
+    - `fitBasis`：由分类派生——上装/连衣裙/外套 → `UPPER`，下装 → `LOWER`，ACCESSORIES/SHOES → `NONE`；写入试穿项快照。
 - [ ] 11.6 我的试穿：列表、详情、删除（同步删 COS）。
 - [ ] 11.7 每日额度 `TRYON_DAILY_LIMIT`；超限提示。
 - [ ] 11.8 真实 API 测试：1 件、3 件各 1 次；记录耗时/费用。
@@ -326,6 +344,8 @@ outfitexpert-shop/
 ### 验收
 
 - 对应 PRD §7.9 全部勾选。
+- UPPER 身高/胸围 + 成衣胸围/版型齐全才出判断；LOWER 腰围/臀围 + 成衣腰围/臀围/版型齐全才出判断；NONE 不出判断；缺最低数据有「无尺码数据」标注。
+- 上装长度提示仅在合身判断成立且用户身高 + 商品衣长齐全时出现；下装展示裤长/裙长，但不输出长度结论。
 - 结果图带「AI 生成」；失败文案不暴露 MPS 原始错误。
 - 浏览器源码/网络响应无腾讯云 Secret。
 - 删除记录后 COS 对象不存在。
@@ -371,7 +391,7 @@ outfitexpert-shop/
 ### 任务
 
 - [ ] 13.1 后台布局 + `role=ADMIN` 守卫。
-- [ ] 13.2 商品管理：列表/搜索/状态筛选、新建/编辑、上下架、软删除；图片路径 + 预览。
+- [ ] 13.2 商品管理：列表/搜索/状态筛选、新建/编辑、上下架、软删除；表单含 `refType`，按分类条件必填：上装/连衣裙/外套版型/胸围/衣长，下装版型/腰围/臀围/裤长，ACCESSORIES/SHOES 尺寸可空；图片路径 + 预览。
 - [ ] 13.3 订单管理：列表/详情、发货（假单号）、完成、退款（恢复库存）、备注。
 - [ ] 13.4 看板：商品总数/在售/已售、订单数、演示成交额、最近 5 单、试穿次数。
 - [ ] 13.5 全站打磨：loading/empty/error、移动端、键盘可达、图片 alt。
@@ -409,7 +429,7 @@ outfitexpert-shop/
 
 | 事项 | 内容 | 截止 |
 | --- | --- | --- |
-| 商品样例 | 6~8 件：名称/描述/价格/分类/颜色/材质/成衣尺寸/版型/3 图 | M0 seed 前 |
+| 商品样例 | 6~9 件：品类（GARMENT/ACCESSORIES/SHOES）/名称/描述/价格/分类/颜色/材质/3 图；上装填胸围/衣长/版型，下装填腰围/臀围/裤长/版型，其余尺寸可空 | M0 seed 前 |
 | 商品全量 | 30~50 件 | M1 前 |
 | 品牌资料 | 店名、Logo、主色、风格参考 | M1 前 |
 | 规则文案 | 运费、退换货、隐私政策、用户协议 | M2/M3 前 |
@@ -425,7 +445,7 @@ outfitexpert-shop/
 
 | 风险 | 应对 |
 | --- | --- |
-| 商品数据未就绪 | 先用 6~8 件占位；M1 前补齐 |
+| 商品数据未就绪 | 先用 6~9 件占位；M1 前补齐 |
 | MPS 成本 | 每日额度 + 测试只跑 1/3 件 |
 | Dify localhost 不可达 | Docker Dify 或 cloudflared/ngrok |
 | Neon 国内不稳 | 本地 Docker 开发；部署前实测，必要时换 Supabase |
@@ -438,8 +458,10 @@ outfitexpert-shop/
 
 ## 17. 当前进度
 
-- [x] 第 1 步：PRD v0.1（2026-11-01）
+- [x] 第 1 步：PRD v0.3（2026-11-02 修订；v0.1 初版 2026-11-01）
 - [x] 第 2 步：`CLAUDE.md` + `memory-bank/plan.md`
-- [ ] 用户确认 plan
-- [ ] M0 开始
+- [x] 用户确认 plan
+- [x] M0 完成（2026-11-02）
+- [x] 2026-11-02 追加下装尺寸：`waistCm` / `hipCm` / `pantsLengthCm`
+- [ ] M1 开始
 - [ ] GitHub 远程仓库（本地 Git 已初始化；远程连接暂缓）

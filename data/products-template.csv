@@ -1,0 +1,5 @@
+slug,name,ref_type,description,price_yuan,category,color,size_label,material,care,tags,fit_type,chest_cm,length_cm,shoulder_cm,waist_cm,hip_cm,pants_length_cm,image1,image2,image3
+ivory-knit-cardigan,米白针织开衫,GARMENT,"柔软羊毛混纺，短款开衫版型，适合春秋叠穿。",329,上装,米白,均码,羊毛 30% / 腈纶 70%,手洗冷水，平铺晾干,"针织,温柔,通勤",REGULAR,96,58,38,,,,ivory-knit-cardigan-1.jpg,ivory-knit-cardigan-2.jpg,ivory-knit-cardigan-3.jpg
+black-wide-leg-pants,黑色高腰阔腿裤,GARMENT,"高腰垂感阔腿裤，宽松直筒版型，遮肉显腿长。",359,下装,黑色,均码,聚酯纤维 100%,机洗轻柔，悬挂晾干,"阔腿裤,高腰,通勤",LOOSE,,,,72,102,105,black-wide-leg-pants-1.jpg,black-wide-leg-pants-2.jpg,black-wide-leg-pants-3.jpg
+canvas-tote-bag,帆布托特包,ACCESSORIES,"厚实棉帆布，容量可放 13 寸电脑。",199,配饰,米色,均码,棉帆布,不可机洗，湿布擦拭,"帆布,通勤,包",,,,,,,,canvas-tote-bag-1.jpg,canvas-tote-bag-2.jpg,canvas-tote-bag-3.jpg
+white-sneakers,白色板鞋,SHOES,"白色牛皮板鞋，橡胶底防滑耐磨。",399,鞋履,白色,37,牛皮 / 橡胶底,湿布擦拭，阴干,"板鞋,简约,百搭",,,,,,,,white-sneakers-1.jpg,white-sneakers-2.jpg,white-sneakers-3.jpg
