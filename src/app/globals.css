@@ -4,6 +4,10 @@
 
 @custom-variant dark (&:is(.dark *));
 
+.font-bodoni {
+    font-family: var(--font-bodoni), ui-serif, Georgia, serif;
+}
+
 @theme inline {
     --font-heading: var(--font-sans);
     --font-sans: var(--font-sans);

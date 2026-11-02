@@ -8,7 +8,12 @@ export function safeNextPath(
   fallback = "/account",
 ): string {
   const raw = Array.isArray(value) ? value[0] : value;
-  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) {
+  if (
+    !raw ||
+    !raw.startsWith("/") ||
+    raw.startsWith("//") ||
+    raw.startsWith("/login")
+  ) {
     return fallback;
   }
   return raw;

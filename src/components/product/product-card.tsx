@@ -2,16 +2,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { formatPrice } from "@/lib/format";
-import type { ProductListItem } from "@/lib/products";
+import type { ProductCardData } from "@/lib/products";
 import { cn } from "@/lib/utils";
 
-const refTypeLabel: Record<ProductListItem["refType"], string> = {
+const refTypeLabel: Record<ProductCardData["refType"], string> = {
   GARMENT: "服装",
   ACCESSORIES: "配饰",
   SHOES: "鞋履",
 };
 
-export function ProductCard({ product }: { product: ProductListItem }) {
+export function ProductCard({ product }: { product: ProductCardData }) {
   const image = product.images[0]?.url;
   const sold = product.status === "SOLD";
 

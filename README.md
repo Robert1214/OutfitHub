@@ -1,4 +1,4 @@
-# OUTFIT EXPERT — 线上店铺 Demo
+# Wardrobe — 线上店铺 Demo
 
 服装店线上店铺 Demo（作品集用）：商品浏览、登录、购物车、Mock 支付、AI 试穿、Dify 导购与简单后台。只做到「收钱前一步」，不接真实支付、短信、物流。
 
@@ -9,6 +9,7 @@
 - [x] M0：项目初始化 + Postgres + 商品模型 + 种子数据 + CSV 导入模板
 - [x] M1：首页推荐 / 分类 / 搜索 / 筛选排序 / 商品详情 / 本地加购
 - [x] M2：登录 / 注册 / 个人中心 / 身材 / 照片上传（COS 私有桶）/ 隐私页
+- [x] 前端结构改版：Wardrobe / 首页主推大屏 / 8+N 展开 / 登录回跳 / 个人中心对齐
 - [ ] M3 购物车 + 下单 + 演示支付
 - [ ] M4 AI 试穿
 - [ ] M5 Dify 导购
@@ -96,7 +97,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 | `npm run db:seed` | 重新写入种子数据 |
 | `npm run db:import` | 导入 `data/products-template.csv` |
 | `npm run db:import -- path/to.csv` | 导入指定 CSV |
-| `npm run images:placeholders` | 重新生成 27 张商品占位图 |
+| `npm run images:placeholders` | 重新生成 39 张商品占位图 |
 | `docker compose up -d` | 启动 Postgres |
 | `docker compose down` | 停止 Postgres（数据保留在卷中） |
 
@@ -105,9 +106,11 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ### 种子数据
 
 - 6 个分类：上装 / 下装 / 连衣裙 / 外套 / 配饰 / 鞋履
-- 9 件商品，覆盖上装 / 下装 / 连衣裙 / 外套 / 配饰 / 鞋履
-- 每件 3 张占位图，共 27 张，位于 `public/products/`
+- 13 件商品（12 件在售 + 1 件已售），覆盖上装 / 下装 / 连衣裙 / 外套 / 配饰 / 鞋履
+- 每件 3 张占位图，共 39 张，位于 `public/products/`
 - 其中 1 件 `SOLD`，用于验收「已售罄」状态
+- 商品数超过 8 件，用于演示首页/列表的「展开更多」下箭头
+- 首页主推大屏使用各商品主图（`{slug}-1.jpg`）；如需单独的大屏横图，提供后我再加 `heroImage` 字段
 
 商品图是自动生成的纯色占位图，后续替换为真实商品图即可，路径规则：
 

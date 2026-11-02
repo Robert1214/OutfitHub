@@ -110,8 +110,8 @@ export function PhotoManager({ initialUrl }: { initialUrl: string | null }) {
   }
 
   return (
-    <div className="space-y-3">
-      <div className="relative aspect-[3/4] overflow-hidden rounded-xl border bg-muted">
+    <div className="flex h-full flex-col space-y-3">
+      <div className="relative min-h-[300px] flex-1 overflow-hidden rounded-xl border bg-muted">
         {url ? (
           // Signed COS URL 的域名随桶变化，这里用原生 img，避免配置 next/image remotePatterns。
           // eslint-disable-next-line @next/next/no-img-element

@@ -1,18 +1,36 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { ProductCard } from "@/components/product/product-card";
+import { HeroCarousel } from "@/components/home/hero-carousel";
+import { ExpandableProductGrid } from "@/components/product/expandable-product-grid";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   getCategoriesWithCounts,
+  getFeaturedProducts,
   getRecommendedProducts,
+  toProductCardData,
 } from "@/lib/products";
+
+async function HomeHeroCarousel() {
+  const products = await getFeaturedProducts(5);
+  return <HeroCarousel products={products} />;
+}
+
+function HeroCarouselSkeleton() {
+  return (
+    <div
+      className="aspect-[16/10] w-full animate-pulse rounded-2xl border bg-muted sm:aspect-[16/7] lg:aspect-[21/9]"
+      aria-hidden
+    />
+  );
+}
 
 async function HomeSections() {
   const [categories, products] = await Promise.all([
     getCategoriesWithCounts(),
-    getRecommendedProducts(8),
+    getRecommendedProducts(60),
   ]);
+  const cards = products.map(toProductCardData);
 
   return (
     <>
@@ -66,10 +84,8 @@ async function HomeSections() {
             查看全部
           </Link>
         </div>
-        <div className="mt-6 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
+        <div className="mt-6">
+          <ExpandableProductGrid products={cards} />
         </div>
       </section>
     </>
@@ -111,36 +127,40 @@ function HomeSectionsSkeleton() {
 export default function Home() {
   return (
     <div className="mx-auto max-w-6xl px-4">
-      <section className="py-16 sm:py-24">
-        <p className="text-xs tracking-[0.32em] text-muted-foreground">
-          OUTFIT EXPERT
-        </p>
-        <h1 className="mt-5 max-w-3xl text-4xl font-semibold leading-[1.15] tracking-tight sm:text-6xl">
-          把喜欢的衣服，
-          <br />
-          先穿在身上看看。
-        </h1>
-        <p className="mt-6 max-w-xl text-sm leading-7 text-muted-foreground sm:text-base">
-          孤品服装店：每件只有一件。先逛商品，再用 AI
-          试穿看看上身效果，最后演示下单。
-        </p>
+      <section className="pb-8 pt-10 sm:pt-16">
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+          <div className="max-w-2xl">
+            <h1 className="font-bodoni text-3xl font-medium leading-[1.08] tracking-tight sm:text-4xl lg:text-5xl">
+              YOU ARE WHAT YOU WEAR.
+            </h1>
+            <p className="mt-4 text-sm text-muted-foreground">
+              孤品服装店 · 每件只有一件
+            </p>
+          </div>
 
-        <form
-          action="/products"
-          method="get"
-          className="mt-8 flex w-full max-w-xl flex-col gap-2 sm:flex-row"
-        >
-          <Input
-            name="q"
-            required
-            placeholder="搜索针织、连衣裙、通勤…"
-            aria-label="搜索商品"
-            className="h-11 flex-1"
-          />
-          <Button type="submit" size="lg" className="h-11 px-6">
-            搜索
-          </Button>
-        </form>
+          <form
+            action="/products"
+            method="get"
+            className="flex w-full gap-2 sm:w-80"
+          >
+            <Input
+              name="q"
+              required
+              placeholder="搜索商品…"
+              aria-label="搜索商品"
+              className="h-10"
+            />
+            <Button type="submit" className="h-10 shrink-0 px-4">
+              搜索
+            </Button>
+          </form>
+        </div>
+
+        <div className="mt-8">
+          <Suspense fallback={<HeroCarouselSkeleton />}>
+            <HomeHeroCarousel />
+          </Suspense>
+        </div>
       </section>
 
       <Suspense fallback={<HomeSectionsSkeleton />}>

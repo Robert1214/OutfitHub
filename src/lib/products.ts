@@ -1,7 +1,7 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "./db";
 
-export const PRODUCTS_PAGE_SIZE = 12;
+export const PRODUCTS_PAGE_SIZE = 8;
 
 export type ProductSort = "newest" | "price_asc" | "price_desc";
 export type FitTypeValue = "SLIM" | "REGULAR" | "LOOSE";
@@ -51,6 +51,42 @@ export type ProductDetail = ProductListItem & {
   images: { url: string; sortOrder: number }[];
 };
 
+export type ProductCardData = Pick<
+  ProductListItem,
+  | "id"
+  | "slug"
+  | "name"
+  | "priceCents"
+  | "refType"
+  | "status"
+  | "tags"
+  | "category"
+  | "images"
+>;
+
+export type HeroProduct = {
+  id: string;
+  slug: string;
+  name: string;
+  priceCents: number;
+  categoryName: string;
+  imageUrl: string | null;
+};
+
+export function toProductCardData(product: ProductListItem): ProductCardData {
+  return {
+    id: product.id,
+    slug: product.slug,
+    name: product.name,
+    priceCents: product.priceCents,
+    refType: product.refType,
+    status: product.status,
+    tags: product.tags,
+    category: product.category,
+    images: product.images,
+  };
+}
+
 const orderByMap: Record<ProductSort, Prisma.ProductOrderByWithRelationInput> = {
   newest: { createdAt: "desc" },
   price_asc: { priceCents: "asc" },
@@ -95,7 +131,7 @@ function buildWhere(params: ProductListParams): Prisma.ProductWhereInput {
 
 export async function getProducts(params: ProductListParams = {}) {
   const page = Math.max(1, params.page ?? 1);
-  const pageSize = Math.min(48, Math.max(1, params.pageSize ?? PRODUCTS_PAGE_SIZE));
+  const pageSize = Math.min(100, Math.max(1, params.pageSize ?? PRODUCTS_PAGE_SIZE));
   const where = buildWhere(params);
 
   const [items, total] = await Promise.all([
@@ -124,6 +160,31 @@ export async function getProducts(params: ProductListParams = {}) {
 export async function getRecommendedProducts(limit = 8) {
   const result = await getProducts({ pageSize: limit, sort: "newest" });
   return result.items;
+}
+
+export async function getFeaturedProducts(limit = 5): Promise<HeroProduct[]> {
+  const items = await prisma.product.findMany({
+    where: { status: "ON_SALE", refType: "GARMENT" },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    include: {
+      category: { select: { name: true, slug: true } },
+      images: {
+        orderBy: { sortOrder: "asc" },
+        take: 1,
+        select: { url: true },
+      },
+    },
+  });
+
+  return items.map((product) => ({
+    id: product.id,
+    slug: product.slug,
+    name: product.name,
+    priceCents: product.priceCents,
+    categoryName: product.category.name,
+    imageUrl: product.images[0]?.url ?? null,
+  }));
 }
 
 export async function getProductSlugs(): Promise<{ slug: string }[]> {

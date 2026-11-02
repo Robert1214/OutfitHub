@@ -16,8 +16,8 @@ export function SiteHeader() {
     <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:h-16">
         <Link href="/" className="flex shrink-0 items-center gap-2">
-          <span className="text-sm font-semibold tracking-[0.18em] sm:text-base">
-            OUTFIT EXPERT
+          <span className="font-bodoni text-lg font-medium tracking-[0.06em] sm:text-xl">
+            Wardrobe
           </span>
           <DemoBadge className="hidden sm:inline-flex" />
         </Link>

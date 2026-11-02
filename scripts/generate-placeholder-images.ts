@@ -38,9 +38,8 @@ function placeholderSvg(
       <rect x="80" y="80" width="640" height="840" rx="24" fill="none" stroke="${accent}" stroke-width="2" opacity="0.55" />
       <circle cx="400" cy="420" r="150" fill="${accent}" opacity="0.16" />
       <circle cx="400" cy="420" r="92" fill="none" stroke="${accent}" stroke-width="2" opacity="0.5" />
-      <text x="400" y="640" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="42" fill="${accent}">${safeName}</text>
-      <text x="400" y="700" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" letter-spacing="5" fill="${accent}">OUTFIT EXPERT</text>
-      <text x="400" y="760" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="20" fill="${accent}" opacity="0.8">演示占位图 ${index + 1} / 3</text>
+      <text x="400" y="670" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="42" fill="${accent}">${safeName}</text>
+      <text x="400" y="740" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="20" fill="${accent}" opacity="0.8">演示占位图 ${index + 1} / 3</text>
     </svg>
   `;
 }

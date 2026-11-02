@@ -15,7 +15,7 @@ export default function TermsPage() {
             1. 演示性质
           </h2>
           <p>
-            OUTFIT EXPERT 是作品集演示项目，不提供真实商品销售、支付、
+            Wardrobe 是作品集演示项目，不提供真实商品销售、支付、
             物流或退款服务。页面中的「支付」「发货」「退款」均为演示流程，
             不产生真实资金往来。
           </p>

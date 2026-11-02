@@ -54,86 +54,82 @@ export default async function AccountPage() {
         <LogoutButton />
       </div>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>基本资料与身材</CardTitle>
-              <CardDescription>
-                身材数据全部选填，用于试穿结果里的合身判断。
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ProfileForm
-                user={{
-                  name: user.name,
-                  heightCm: user.heightCm,
-                  weightKg: user.weightKg,
-                  bustCm: user.bustCm,
-                  waistCm: user.waistCm,
-                  hipCm: user.hipCm,
-                }}
-              />
-            </CardContent>
-          </Card>
+      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+        <Card className="flex h-full flex-col">
+          <CardHeader>
+            <CardTitle>基本资料与身材</CardTitle>
+            <CardDescription>
+              身材数据全部选填，用于试穿结果里的合身判断。
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1">
+            <ProfileForm
+              user={{
+                name: user.name,
+                heightCm: user.heightCm,
+                weightKg: user.weightKg,
+                bustCm: user.bustCm,
+                waistCm: user.waistCm,
+                hipCm: user.hipCm,
+              }}
+            />
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>我的内容</CardTitle>
-              <CardDescription>
-                订单与试穿记录会随里程碑逐步接入。
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-wrap gap-3">
-              <Link
-                href="/orders"
-                className={buttonVariants({ variant: "outline" })}
-              >
-                我的订单
+        <Card className="flex h-full flex-col">
+          <CardHeader>
+            <CardTitle>本人照片</CardTitle>
+            <CardDescription>
+              AI 试穿前必须上传；照片只用于试穿，不用于训练。
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1">
+            <PhotoManager initialUrl={photoUrl} />
+          </CardContent>
+        </Card>
+
+        <Card className="flex h-full flex-col">
+          <CardHeader>
+            <CardTitle>我的内容</CardTitle>
+            <CardDescription>
+              订单与试穿记录会随里程碑逐步接入。
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-1 flex-wrap items-start gap-3">
+            <Link
+              href="/orders"
+              className={buttonVariants({ variant: "outline" })}
+            >
+              我的订单
+            </Link>
+            <Link
+              href="/account/tryons"
+              className={buttonVariants({ variant: "outline" })}
+            >
+              我的试穿
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card className="flex h-full flex-col">
+          <CardHeader>
+            <CardTitle>隐私与协议</CardTitle>
+          </CardHeader>
+          <CardContent className="flex-1 space-y-3 text-sm text-muted-foreground">
+            <p>
+              照片和身材数据仅本人可见，存于 COS
+              私有桶；删除照片会同步删除对象。
+            </p>
+            <div className="flex gap-4">
+              <Link href="/privacy" className="underline">
+                隐私政策
               </Link>
-              <Link
-                href="/account/tryons"
-                className={buttonVariants({ variant: "outline" })}
-              >
-                我的试穿
+              <Link href="/terms" className="underline">
+                用户协议
               </Link>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>本人照片</CardTitle>
-              <CardDescription>
-                AI 试穿前必须上传；照片只用于试穿，不用于训练。
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <PhotoManager initialUrl={photoUrl} />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>隐私与协议</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-muted-foreground">
-              <p>
-                照片和身材数据仅本人可见，存于 COS
-                私有桶；删除照片会同步删除对象。
-              </p>
-              <div className="flex gap-4">
-                <Link href="/privacy" className="underline">
-                  隐私政策
-                </Link>
-                <Link href="/terms" className="underline">
-                  用户协议
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

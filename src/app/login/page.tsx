@@ -12,7 +12,7 @@ async function LoginContent({
   searchParams: Promise<SearchParams>;
 }) {
   const raw = await searchParams;
-  const nextPath = safeNextPath(raw.next);
+  const nextPath = safeNextPath(raw.next, "/");
 
   return <LoginForms nextPath={nextPath} />;
 }

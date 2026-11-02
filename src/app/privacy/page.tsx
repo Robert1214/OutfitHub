@@ -6,7 +6,7 @@ export default function PrivacyPage() {
       <p className="text-xs tracking-[0.28em] text-muted-foreground">LEGAL</p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight">隐私政策</h1>
       <p className="mt-3 text-sm text-muted-foreground">
-        本页面适用于演示项目 OUTFIT EXPERT。演示环境不产生真实交易。
+        本页面适用于演示项目 Wardrobe。演示环境不产生真实交易。
       </p>
 
       <div className="mt-10 space-y-8 text-sm leading-7 text-muted-foreground">
