@@ -131,10 +131,10 @@ export default function Home() {
         <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-2xl">
             <h1 className="font-bodoni text-3xl font-medium leading-[1.08] tracking-tight sm:text-4xl lg:text-5xl">
-              YOU ARE WHAT YOU WEAR.
+              YOU ARE WHAT YOU WEAR!
             </h1>
             <p className="mt-4 text-sm text-muted-foreground">
-              孤品服装店 · 每件只有一件
+              本店商品均为孤品
             </p>
           </div>
 

@@ -266,7 +266,6 @@ export function CheckoutForm({
                     {item.product.sizeLabel
                       ? ` · ${item.product.sizeLabel}`
                       : ""}
-                    {" · 仅此一件"}
                   </p>
                   <p className="mt-2 text-sm font-medium">
                     {formatPrice(item.product.priceCents)}

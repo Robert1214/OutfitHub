@@ -390,15 +390,11 @@ export function CartView() {
                     </p>
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
-                    {isAvailable ? (
-                      <span className="text-xs text-muted-foreground">
-                        仅此一件
-                      </span>
-                    ) : (
+                    {!isAvailable ? (
                       <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                         已售出
                       </span>
-                    )}
+                    ) : null}
                     <button
                       type="button"
                       onClick={() => void removeItem(line)}
@@ -415,6 +411,27 @@ export function CartView() {
         </div>
 
         <aside className="h-fit rounded-xl border bg-card p-5 lg:sticky lg:top-24">
+          {selected.length > 0 ? (
+            <div className="mb-4 flex flex-wrap gap-2">
+              {selected.map((item) => (
+                <div
+                  key={item.productId}
+                  className="relative h-20 w-16 overflow-hidden rounded-lg border bg-muted"
+                >
+                  {item.product.imageUrl ? (
+                    <Image
+                      src={item.product.imageUrl}
+                      alt={item.product.name}
+                      fill
+                      sizes="64px"
+                      className="object-contain"
+                    />
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          ) : null}
+
           <p className="text-sm font-medium">订单摘要</p>
           <dl className="mt-4 space-y-2 text-sm">
             <div className="flex justify-between text-muted-foreground">

@@ -35,16 +35,19 @@ export function ProductCard({ product }: { product: ProductCardData }) {
           </div>
         )}
 
-        <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
-          <Badge variant={sold ? "secondary" : "default"}>
-            {sold ? "已售出" : "仅此一件"}
-          </Badge>
-          {product.refType !== "GARMENT" ? (
-            <Badge variant="outline" className="bg-background/80 backdrop-blur">
-              {refTypeLabel[product.refType]}
-            </Badge>
-          ) : null}
-        </div>
+        {sold || product.refType !== "GARMENT" ? (
+          <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
+            {sold ? <Badge variant="secondary">已售出</Badge> : null}
+            {product.refType !== "GARMENT" ? (
+              <Badge
+                variant="outline"
+                className="bg-background/80 backdrop-blur"
+              >
+                {refTypeLabel[product.refType]}
+              </Badge>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <div className="mt-3 space-y-1">

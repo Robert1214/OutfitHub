@@ -3,11 +3,17 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { AddToCartButton } from "@/components/product/add-to-cart-button";
+import { ProductDetailTabs } from "@/components/product/product-detail-tabs";
 import { ProductGallery } from "@/components/product/product-gallery";
-import { ProductSizeTable } from "@/components/product/product-size-table";
+import { ShippingInfo } from "@/components/product/shipping-info";
 import { Badge } from "@/components/ui/badge";
 import { formatPrice } from "@/lib/format";
-import { getProductBySlug, getProductSlugs } from "@/lib/products";
+import {
+  getProductBySlug,
+  getProductSlugs,
+  getRecommendedProducts,
+  toProductCardData,
+} from "@/lib/products";
 
 export const instant = false;
 
@@ -43,10 +49,17 @@ export default async function ProductDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const product = await getProduct(slug);
+  const [product, recommended] = await Promise.all([
+    getProduct(slug),
+    getRecommendedProducts(8),
+  ]);
   if (!product) notFound();
 
   const sold = product.status === "SOLD";
+  const recommendations = recommended
+    .filter((item) => item.id !== product.id)
+    .slice(0, 4)
+    .map(toProductCardData);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
@@ -57,16 +70,16 @@ export default async function ProductDetailPage({
         ← 返回商品
       </Link>
 
-      <div className="mt-6 grid gap-10 lg:grid-cols-2">
-        <ProductGallery images={product.images} alt={product.name} />
+      <div className="mt-6 grid gap-10 lg:grid-cols-2 lg:items-start">
+        <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+          <ProductGallery images={product.images} alt={product.name} />
+        </div>
 
-        <div className="space-y-6">
+        <aside className="flex min-w-0 flex-col gap-6 lg:sticky lg:top-24 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-[calc(100vh-7rem)] lg:justify-between lg:self-start lg:overflow-y-auto lg:pr-1">
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline">{product.category.name}</Badge>
-              <Badge variant={sold ? "secondary" : "default"}>
-                {sold ? "已售出" : "仅此一件"}
-              </Badge>
+              {sold ? <Badge variant="secondary">已售出</Badge> : null}
               {product.refType !== "GARMENT" ? (
                 <Badge variant="outline">
                   {refTypeLabel[product.refType]}
@@ -115,12 +128,7 @@ export default async function ProductDetailPage({
             ) : null}
           </dl>
 
-          <div>
-            <h2 className="text-sm font-medium">成衣尺寸</h2>
-            <div className="mt-3">
-              <ProductSizeTable product={product} />
-            </div>
-          </div>
+          <ShippingInfo />
 
           <div className="space-y-2">
             <AddToCartButton product={product} />
@@ -138,6 +146,13 @@ export default async function ProductDetailPage({
               </p>
             )}
           </div>
+        </aside>
+
+        <div className="min-w-0 lg:col-start-1 lg:row-start-2">
+          <ProductDetailTabs
+            product={product}
+            recommendations={recommendations}
+          />
         </div>
       </div>
     </div>
