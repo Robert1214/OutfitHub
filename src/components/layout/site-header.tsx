@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { CartBadge } from "@/components/cart/cart-badge";
+import { UserNav } from "@/components/auth/user-nav";
+import { cn } from "@/lib/utils";
 import { DemoBadge } from "./demo-badge";
 
 const navItems = [
@@ -25,12 +27,16 @@ export function SiteHeader() {
             <Link
               key={item.href}
               href={item.href}
-              className="inline-flex items-center transition-colors hover:text-foreground"
+              className={cn(
+                "inline-flex items-center transition-colors hover:text-foreground",
+                item.href === "/assistant" && "hidden sm:inline-flex",
+              )}
             >
               {item.label}
               {item.href === "/cart" ? <CartBadge /> : null}
             </Link>
           ))}
+          <UserNav />
         </nav>
       </div>
     </header>

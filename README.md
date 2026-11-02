@@ -8,7 +8,8 @@
 
 - [x] M0：项目初始化 + Postgres + 商品模型 + 种子数据 + CSV 导入模板
 - [x] M1：首页推荐 / 分类 / 搜索 / 筛选排序 / 商品详情 / 本地加购
-- [ ] M2 登录 + 个人中心
+- [x] M2 代码：登录 / 注册 / 个人中心 / 身材 / 照片上传 / 隐私页
+- [ ] M2 验收：COS 照片实际上传 / 签名 URL / 删除（腾讯云账号欠费，待充值）
 - [ ] M3 购物车 + 下单 + 演示支付
 - [ ] M4 AI 试穿
 - [ ] M5 Dify 导购
@@ -19,10 +20,14 @@
 - Next.js 16 App Router + TypeScript strict
 - Tailwind CSS 4 + shadcn/ui（base-nova 预设）
 - Postgres 16（本地 Docker）+ Prisma 7
-- Auth.js v5 Credentials + JWT（M2 接入完整登录）
+- Auth.js v5 Credentials + JWT（邮箱密码 / 手机号演示码，7 天）
 - zod 校验
 - 腾讯云 COS / MPS（M2/M4 接入）
 - Dify Chatflow（M5 接入）
+
+## 当前阻塞
+
+腾讯云账号当前处于欠费状态，COS 返回 `account is arrears`。照片上传和 M4 试穿会显示友好错误，账号充值后即可复测。
 
 ## 环境要求
 
@@ -81,7 +86,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 | 管理员 | `admin@outfitexpert.demo` | `Admin123456` | 仅演示；M6 后台使用 |
 | 测试用户 | `demo@outfitexpert.demo` | `Demo123456` | 仅演示 |
 
-手机号登录（M2 接入）验证码固定为 `123456`。
+手机号登录验证码固定为 `123456`；未注册手机号会自动创建账号。
 
 ## 常用命令
 
