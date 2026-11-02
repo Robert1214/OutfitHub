@@ -8,8 +8,7 @@
 
 - [x] M0：项目初始化 + Postgres + 商品模型 + 种子数据 + CSV 导入模板
 - [x] M1：首页推荐 / 分类 / 搜索 / 筛选排序 / 商品详情 / 本地加购
-- [x] M2 代码：登录 / 注册 / 个人中心 / 身材 / 照片上传 / 隐私页
-- [ ] M2 验收：COS 照片实际上传 / 签名 URL / 删除（腾讯云账号欠费，待充值）
+- [x] M2：登录 / 注册 / 个人中心 / 身材 / 照片上传（COS 私有桶）/ 隐私页
 - [ ] M3 购物车 + 下单 + 演示支付
 - [ ] M4 AI 试穿
 - [ ] M5 Dify 导购
@@ -24,10 +23,6 @@
 - zod 校验
 - 腾讯云 COS / MPS（M2/M4 接入）
 - Dify Chatflow（M5 接入）
-
-## 当前阻塞
-
-腾讯云账号当前处于欠费状态，COS 返回 `account is arrears`。照片上传和 M4 试穿会显示友好错误，账号充值后即可复测。
 
 ## 环境要求
 
@@ -198,5 +193,6 @@ docker-compose.yml
 ## 备注
 
 - Prisma 7 使用 `prisma7.config.ts` 读取 `.env.local`，生成的 Client 在 `src/generated/prisma/`（不入库）。
+- 腾讯云账号需保持余额；欠费会导致 COS 照片上传和 M4 试穿失败。
 - Dify 云端无法访问 `localhost`；M5 联调时使用本地 Docker Dify 或 cloudflared/ngrok（见 PRD §5.3）。
 - 商品详情、搜索、登录、购物车、试穿、导购、后台按 `memory-bank/plan.md` 的 M1~M6 逐步实现。
