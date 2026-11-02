@@ -91,9 +91,7 @@ export default async function AccountPage() {
         <Card className="flex h-full flex-col">
           <CardHeader>
             <CardTitle>我的内容</CardTitle>
-            <CardDescription>
-              订单与试穿记录会随里程碑逐步接入。
-            </CardDescription>
+            <CardDescription>订单、收货地址与试穿记录。</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-1 flex-wrap items-start gap-3">
             <Link
@@ -101,6 +99,12 @@ export default async function AccountPage() {
               className={buttonVariants({ variant: "outline" })}
             >
               我的订单
+            </Link>
+            <Link
+              href="/account/addresses"
+              className={buttonVariants({ variant: "outline" })}
+            >
+              收货地址
             </Link>
             <Link
               href="/account/tryons"

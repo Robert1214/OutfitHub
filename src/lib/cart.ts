@@ -71,3 +71,53 @@ export function addToCart(item: CartItemInput): "added" | "duplicate" {
 export function getCartCount(): number {
   return readCart().length;
 }
+
+export function updateLocalCartItem(
+  productId: string,
+  updater: (item: CartItem) => CartItem,
+): void {
+  writeCart(
+    readCart().map((item) =>
+      item.productId === productId ? updater(item) : item,
+    ),
+  );
+}
+
+export function setAllLocalSelected(selected: boolean): void {
+  writeCart(readCart().map((item) => ({ ...item, selected })));
+}
+
+export function removeLocalCartItem(productId: string): void {
+  writeCart(readCart().filter((item) => item.productId !== productId));
+}
+
+export function clearLocalCart(): void {
+  if (!hasStorage()) return;
+  window.localStorage.removeItem(CART_STORAGE_KEY);
+  window.dispatchEvent(new Event(CART_UPDATED_EVENT));
+}
+
+/** 登录成功后把游客购物车合并到 DB；成功后清空本地。 */
+export async function mergeLocalCartToServer(): Promise<boolean> {
+  const items = readCart();
+  if (!hasStorage() || items.length === 0) return true;
+
+  try {
+    const response = await fetch("/api/cart", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "merge",
+        items: items.map((item) => ({
+          productId: item.productId,
+          selected: item.selected,
+        })),
+      }),
+    });
+    if (!response.ok) return false;
+    clearLocalCart();
+    return true;
+  } catch {
+    return false;
+  }
+}

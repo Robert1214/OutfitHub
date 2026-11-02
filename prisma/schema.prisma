@@ -1,5 +1,5 @@
-// Prisma schema — M0：用户 / 分类 / 商品 / 商品图
-// 其余表（购物车、地址、订单、试穿、聊天）在 M3/M4/M5 前补。
+// Prisma schema — 用户 / 分类 / 商品 / 商品图 / 购物车 / 地址 / 订单
+// 试穿与聊天相关表在 M4/M5 前补。
 
 generator client {
   provider = "prisma-client"
@@ -34,6 +34,15 @@ enum FitType {
   LOOSE
 }
 
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID_DEMO
+  SHIPPED_DEMO
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String?  @unique
@@ -50,6 +59,10 @@ model User {
   photoKey     String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  cart      Cart?
+  addresses Address[]
+  orders    Order[]
 
   @@map("users")
 }
@@ -91,8 +104,10 @@ model Product {
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
-  category Category       @relation(fields: [categoryId], references: [id])
-  images   ProductImage[]
+  category   Category       @relation(fields: [categoryId], references: [id])
+  images     ProductImage[]
+  cartItems  CartItem[]
+  orderItems OrderItem[]
 
   @@index([status])
   @@index([categoryId])
@@ -112,4 +127,82 @@ model ProductImage {
   @@unique([productId, sortOrder])
   @@index([productId])
   @@map("product_images")
+}
+
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  cartId    String
+  productId String
+  selected  Boolean  @default(true)
+  addedAt   DateTime @default(now())
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, productId])
+  @@index([cartId])
+  @@map("cart_items")
+}
+
+model Address {
+  id        String   @id @default(cuid())
+  userId    String
+  recipient String
+  phone     String
+  province  String
+  city      String
+  district  String
+  detail    String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("addresses")
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  orderNo         String      @unique
+  userId          String
+  addressSnapshot Json
+  totalCents      Int
+  status          OrderStatus @default(PENDING_PAYMENT)
+  paymentMethod   String      @default("DEMO")
+  paidAt          DateTime?
+  trackingNo      String?
+  note            String?
+  idempotencyKey  String?     @unique
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  user            User        @relation(fields: [userId], references: [id])
+  items           OrderItem[]
+
+  @@index([userId, status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id              String   @id @default(cuid())
+  orderId         String
+  productId       String?
+  productSnapshot Json
+  priceCents      Int
+  createdAt       DateTime @default(now())
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product         Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@map("order_items")
 }
