@@ -34,6 +34,11 @@ enum FitType {
   LOOSE
 }
 
+enum ReturnPolicy {
+  RETURNABLE
+  NO_RETURN
+}
+
 enum OrderStatus {
   PENDING_PAYMENT
   PAID_DEMO
@@ -60,9 +65,12 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  cart      Cart?
-  addresses Address[]
-  orders    Order[]
+  cart       Cart?
+  addresses  Address[]
+  orders     Order[]
+  favorites  Favorite[]
+  footprints Footprint[]
+  assistantLogs AssistantLog[]
 
   @@map("users")
 }
@@ -92,6 +100,9 @@ model Product {
   material         String?
   careInstructions String?
   tags             String[]      @default([])
+  styleTags        String[]      @default([])
+  occasionTags     String[]      @default([])
+  returnPolicy     ReturnPolicy  @default(RETURNABLE)
   fitType          FitType?
   chestCm          Int?
   lengthCm         Int?
@@ -108,6 +119,8 @@ model Product {
   images     ProductImage[]
   cartItems  CartItem[]
   orderItems OrderItem[]
+  favorites  Favorite[]
+  footprints Footprint[]
 
   @@index([status])
   @@index([categoryId])
@@ -205,4 +218,61 @@ model OrderItem {
 
   @@index([orderId])
   @@map("order_items")
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId, createdAt])
+  @@map("favorites")
+}
+
+model Footprint {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  viewedAt  DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId, viewedAt])
+  @@map("footprints")
+}
+
+model AssistantLog {
+  id               String   @id @default(cuid())
+  userId           String?
+  anonId           String?
+  conversationId   String?
+  query            String
+  answer           String?
+  intent           String?
+  confidence       Float?
+  productIds       String[] @default([])
+  validProductIds  String[] @default([])
+  invalidProductIds String[] @default([])
+  citations        String[] @default([])
+  handoff          Boolean  @default(false)
+  latencyMs        Int?
+  firstTokenMs     Int?
+  promptTokens     Int?
+  completionTokens Int?
+  costCents        Int?
+  model            String?
+  promptVersion    String?
+  error            String?
+  feedback         String?
+  createdAt        DateTime @default(now())
+  user             User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@map("assistant_logs")
 }

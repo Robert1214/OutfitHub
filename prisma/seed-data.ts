@@ -1,6 +1,7 @@
 export type SeedRefType = "GARMENT" | "ACCESSORIES" | "SHOES";
 export type SeedFitType = "SLIM" | "REGULAR" | "LOOSE";
 export type SeedStatus = "ON_SALE" | "SOLD";
+export type SeedReturnPolicy = "RETURNABLE" | "NO_RETURN";
 
 export type SeedCategory = {
   name: string;
@@ -20,6 +21,9 @@ export type SeedProduct = {
   material: string;
   careInstructions: string;
   tags: string[];
+  styleTags: string[];
+  occasionTags: string[];
+  returnPolicy?: SeedReturnPolicy;
   fitType?: SeedFitType;
   chestCm?: number;
   lengthCm?: number;
@@ -57,6 +61,8 @@ export const seedProducts: SeedProduct[] = [
     material: "羊毛 30% / 腈纶 70%",
     careInstructions: "手洗冷水，平铺晾干",
     tags: ["针织", "温柔", "通勤"],
+    styleTags: ["温柔", "极简", "基础"],
+    occasionTags: ["通勤", "约会", "春秋叠穿"],
     fitType: "REGULAR",
     chestCm: 96,
     lengthCm: 58,
@@ -76,6 +82,8 @@ export const seedProducts: SeedProduct[] = [
     material: "桑蚕丝 100%",
     careInstructions: "建议干洗",
     tags: ["真丝", "通勤", "极简"],
+    styleTags: ["极简", "优雅", "利落"],
+    occasionTags: ["通勤", "约会", "正式"],
     fitType: "SLIM",
     chestCm: 92,
     lengthCm: 62,
@@ -95,6 +103,9 @@ export const seedProducts: SeedProduct[] = [
     material: "聚酯纤维 100%",
     careInstructions: "机洗轻柔，悬挂晾干",
     tags: ["碎花", "约会", "连衣裙"],
+    styleTags: ["甜美", "法式", "温柔"],
+    occasionTags: ["约会", "婚礼宾客", "周末出游"],
+    returnPolicy: "NO_RETURN",
     fitType: "REGULAR",
     chestCm: 94,
     lengthCm: 112,
@@ -114,6 +125,8 @@ export const seedProducts: SeedProduct[] = [
     material: "羊毛 80% / 聚酯纤维 20%",
     careInstructions: "建议干洗",
     tags: ["羊毛", "大衣", "秋冬"],
+    styleTags: ["温柔", "经典", "大气"],
+    occasionTags: ["通勤", "秋冬", "正式"],
     fitType: "LOOSE",
     chestCm: 108,
     lengthCm: 105,
@@ -133,6 +146,8 @@ export const seedProducts: SeedProduct[] = [
     material: "聚酯纤维 100%",
     careInstructions: "机洗轻柔，悬挂晾干",
     tags: ["阔腿裤", "高腰", "通勤"],
+    styleTags: ["极简", "利落", "显瘦"],
+    occasionTags: ["通勤", "日常"],
     fitType: "LOOSE",
     waistCm: 72,
     hipCm: 102,
@@ -152,6 +167,8 @@ export const seedProducts: SeedProduct[] = [
     material: "棉帆布",
     careInstructions: "不可机洗，湿布擦拭",
     tags: ["帆布", "通勤", "包"],
+    styleTags: ["简约", "实用", "基础"],
+    occasionTags: ["通勤", "上课", "日常"],
     stock: 1,
     status: "ON_SALE",
   },
@@ -167,6 +184,9 @@ export const seedProducts: SeedProduct[] = [
     material: "头层牛皮",
     careInstructions: "干布擦拭，避免暴晒",
     tags: ["牛皮", "复古", "配饰"],
+    styleTags: ["复古", "中性"],
+    occasionTags: ["日常", "搭配"],
+    returnPolicy: "NO_RETURN",
     stock: 1,
     status: "ON_SALE",
   },
@@ -182,6 +202,9 @@ export const seedProducts: SeedProduct[] = [
     material: "头层牛皮",
     careInstructions: "干布擦拭，避免暴晒",
     tags: ["乐福鞋", "复古", "皮鞋"],
+    styleTags: ["复古", "中性"],
+    occasionTags: ["通勤", "休闲"],
+    returnPolicy: "NO_RETURN",
     stock: 0,
     status: "SOLD",
   },
@@ -197,6 +220,9 @@ export const seedProducts: SeedProduct[] = [
     material: "牛皮 / 橡胶底",
     careInstructions: "湿布擦拭，阴干",
     tags: ["板鞋", "简约", "百搭"],
+    styleTags: ["简约", "中性", "基础"],
+    occasionTags: ["日常", "通勤", "出游"],
+    returnPolicy: "NO_RETURN",
     stock: 1,
     status: "ON_SALE",
   },
@@ -212,6 +238,8 @@ export const seedProducts: SeedProduct[] = [
     material: "羊毛 20% / 腈纶 80%",
     careInstructions: "手洗冷水，平铺晾干",
     tags: ["针织", "叠穿", "基础款"],
+    styleTags: ["基础", "中性", "极简"],
+    occasionTags: ["通勤", "叠穿", "日常"],
     fitType: "REGULAR",
     chestCm: 92,
     lengthCm: 52,
@@ -231,6 +259,8 @@ export const seedProducts: SeedProduct[] = [
     material: "棉 70% / 聚酯纤维 30%",
     careInstructions: "建议干洗",
     tags: ["风衣", "通勤", "春秋"],
+    styleTags: ["简约", "经典", "中性"],
+    occasionTags: ["通勤", "春秋", "日常"],
     fitType: "LOOSE",
     chestCm: 104,
     lengthCm: 110,
@@ -250,6 +280,8 @@ export const seedProducts: SeedProduct[] = [
     material: "棉 100%",
     careInstructions: "机洗轻柔，反面晾干",
     tags: ["牛仔", "半身裙", "通勤"],
+    styleTags: ["复古", "休闲", "基础"],
+    occasionTags: ["通勤", "日常", "周末"],
     fitType: "REGULAR",
     waistCm: 68,
     hipCm: 96,
@@ -269,6 +301,9 @@ export const seedProducts: SeedProduct[] = [
     material: "925 银",
     careInstructions: "干布擦拭，避免接触化学品",
     tags: ["耳环", "银色", "配饰"],
+    styleTags: ["极简", "精致"],
+    occasionTags: ["日常", "通勤", "约会"],
+    returnPolicy: "NO_RETURN",
     stock: 1,
     status: "ON_SALE",
   },

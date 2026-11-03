@@ -110,48 +110,62 @@ export function PhotoManager({ initialUrl }: { initialUrl: string | null }) {
   }
 
   return (
-    <div className="flex h-full flex-col space-y-3">
-      <div className="relative min-h-[300px] flex-1 overflow-hidden rounded-xl border bg-muted">
+    <div className="flex gap-3">
+      <div className="relative h-32 w-24 shrink-0 overflow-hidden rounded-lg border bg-muted">
         {url ? (
           // Signed COS URL 的域名随桶变化，这里用原生 img，避免配置 next/image remotePatterns。
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={url}
             alt="本人照片"
-            className="h-full w-full object-contain"
+            className="h-full w-full object-cover"
           />
         ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center text-sm text-muted-foreground">
-            <span className="text-2xl">＋</span>
-            <span>还没有上传本人照片</span>
-            <span className="text-xs">AI 试穿前需要一张清晰人像</span>
+          <div className="flex h-full flex-col items-center justify-center gap-1 px-2 text-center text-xs text-muted-foreground">
+            <span className="text-xl">＋</span>
+            <span>未上传</span>
           </div>
         )}
         {busy ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/60 text-sm">
+          <div className="absolute inset-0 flex items-center justify-center bg-background/60 text-xs">
             处理中…
           </div>
         ) : null}
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant={url ? "outline" : "default"}
-          disabled={busy}
-          onClick={() => inputRef.current?.click()}
-        >
-          {url ? "更换照片" : "上传照片"}
-        </Button>
-        {url ? (
+      <div className="min-w-0 flex-1 space-y-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             type="button"
-            variant="ghost"
+            size="sm"
+            variant={url ? "outline" : "default"}
             disabled={busy}
-            onClick={removePhoto}
+            onClick={() => inputRef.current?.click()}
           >
-            删除
+            {url ? "更换照片" : "上传照片"}
           </Button>
+          {url ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={busy}
+              onClick={removePhoto}
+            >
+              删除
+            </Button>
+          ) : null}
+        </div>
+
+        <p className="text-xs leading-5 text-muted-foreground">
+          JPG / PNG / WebP，≤8MB，≥200×200；全身 / 半身 / 大头均可。
+          存 COS 私有桶，可随时删除。
+        </p>
+
+        {error ? (
+          <p role="alert" className="text-xs text-destructive">
+            {error}
+          </p>
         ) : null}
       </div>
 
@@ -165,17 +179,6 @@ export function PhotoManager({ initialUrl }: { initialUrl: string | null }) {
           event.target.value = "";
         }}
       />
-
-      <p className="text-xs leading-5 text-muted-foreground">
-        JPG / PNG / WebP，≤8MB，≥200×200；全身 / 半身 / 大头均可。
-        照片仅本人可见，存 COS 私有桶，可随时删除。
-      </p>
-
-      {error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      ) : null}
     </div>
   );
 }

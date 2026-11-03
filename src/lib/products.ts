@@ -7,6 +7,7 @@ export type ProductSort = "newest" | "price_asc" | "price_desc";
 export type FitTypeValue = "SLIM" | "REGULAR" | "LOOSE";
 export type RefTypeValue = "GARMENT" | "ACCESSORIES" | "SHOES";
 export type ProductStatusValue = "DRAFT" | "ON_SALE" | "SOLD" | "ARCHIVED";
+export type ReturnPolicyValue = "RETURNABLE" | "NO_RETURN";
 
 export type ProductListParams = {
   q?: string;
@@ -38,6 +39,9 @@ export type ProductListItem = {
   hipCm: number | null;
   pantsLengthCm: number | null;
   tags: string[];
+  styleTags: string[];
+  occasionTags: string[];
+  returnPolicy: ReturnPolicyValue;
   stock: number;
   status: ProductStatusValue;
   createdAt: Date;

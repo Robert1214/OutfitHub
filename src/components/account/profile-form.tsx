@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 type UserProfile = {
-  name: string | null;
   heightCm: number | null;
   weightKg: number | null;
   bustCm: number | null;
@@ -27,21 +26,12 @@ export function ProfileForm({ user }: { user: UserProfile }) {
   );
 
   return (
-    <form action={formAction} className="space-y-5">
-      <div className="space-y-2">
-        <Label htmlFor="name">昵称</Label>
-        <Input
-          id="name"
-          name="name"
-          maxLength={30}
-          defaultValue={user.name ?? ""}
-          placeholder="怎么称呼你"
-        />
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="heightCm">身高（cm）</Label>
+    <form action={formAction} className="space-y-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="heightCm" className="text-xs">
+            身高（cm）
+          </Label>
           <Input
             id="heightCm"
             name="heightCm"
@@ -51,10 +41,13 @@ export function ProfileForm({ user }: { user: UserProfile }) {
             max={210}
             defaultValue={user.heightCm ?? ""}
             placeholder="选填"
+            className="h-9"
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="weightKg">体重（kg）</Label>
+        <div className="space-y-1.5">
+          <Label htmlFor="weightKg" className="text-xs">
+            体重（kg）
+          </Label>
           <Input
             id="weightKg"
             name="weightKg"
@@ -64,10 +57,13 @@ export function ProfileForm({ user }: { user: UserProfile }) {
             max={200}
             defaultValue={user.weightKg ?? ""}
             placeholder="选填"
+            className="h-9"
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="bustCm">胸围（cm）</Label>
+        <div className="space-y-1.5">
+          <Label htmlFor="bustCm" className="text-xs">
+            胸围（cm）
+          </Label>
           <Input
             id="bustCm"
             name="bustCm"
@@ -77,10 +73,13 @@ export function ProfileForm({ user }: { user: UserProfile }) {
             max={160}
             defaultValue={user.bustCm ?? ""}
             placeholder="选填"
+            className="h-9"
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="waistCm">腰围（cm）</Label>
+        <div className="space-y-1.5">
+          <Label htmlFor="waistCm" className="text-xs">
+            腰围（cm）
+          </Label>
           <Input
             id="waistCm"
             name="waistCm"
@@ -90,10 +89,13 @@ export function ProfileForm({ user }: { user: UserProfile }) {
             max={140}
             defaultValue={user.waistCm ?? ""}
             placeholder="选填"
+            className="h-9"
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="hipCm">臀围（cm）</Label>
+        <div className="space-y-1.5">
+          <Label htmlFor="hipCm" className="text-xs">
+            臀围（cm）
+          </Label>
           <Input
             id="hipCm"
             name="hipCm"
@@ -103,28 +105,26 @@ export function ProfileForm({ user }: { user: UserProfile }) {
             max={160}
             defaultValue={user.hipCm ?? ""}
             placeholder="选填"
+            className="h-9"
           />
         </div>
       </div>
 
-      <p className="text-xs leading-5 text-muted-foreground">
-        身材数据全部选填，仅用于合身判断，只有你本人能看到；可随时清空。
-      </p>
-
-      {state.error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {state.error}
-        </p>
-      ) : null}
-      {state.success ? (
-        <p role="status" className="text-sm text-emerald-600">
-          已保存
-        </p>
-      ) : null}
-
-      <Button type="submit" disabled={pending}>
-        {pending ? "保存中…" : "保存资料"}
-      </Button>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="submit" size="sm" disabled={pending}>
+          {pending ? "保存中…" : "保存身材信息"}
+        </Button>
+        {state.error ? (
+          <p role="alert" className="text-xs text-destructive">
+            {state.error}
+          </p>
+        ) : null}
+        {state.success ? (
+          <p role="status" className="text-xs text-emerald-600">
+            已保存
+          </p>
+        ) : null}
+      </div>
     </form>
   );
 }

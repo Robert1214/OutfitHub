@@ -11,6 +11,7 @@
 - [x] M2：登录 / 注册 / 个人中心 / 身材 / 照片上传（COS 私有桶）/ 隐私页
 - [x] 前端结构改版：Wardrobe / 首页主推大屏 / 8+N 展开 / 登录回跳 / 个人中心对齐
 - [x] 前端细节调整：首页文案 / 商品详情标签与发货说明 / 购物车已选小图
+- [x] 个人中心与商品互动：头像 / 订单统计 / 收藏 / 足迹 / 尺码建议
 - [x] M3：购物车（游客/登录合并）/ 地址管理 / 结算 / 演示支付 / 订单 / 退款（演示）
 - [ ] M4 AI 试穿
 - [ ] M5 Dify 导购
@@ -183,7 +184,8 @@ docker-compose.yml
 | `TENCENT_SECRET_ID` / `TENCENT_SECRET_KEY` | 腾讯云密钥（仅服务端） |
 | `TENCENT_COS_BUCKET` / `TENCENT_COS_REGION` | COS |
 | `TENCENT_MPS_REGION` | MPS |
-| `DIFY_API_BASE_URL` / `DIFY_API_KEY` | Dify（M5） |
+| `DIFY_API_BASE_URL` / `DIFY_API_KEY` | Dify（M5）；本地 Dify 用 `http://localhost/v1` |
+| `ASSISTANT_TOOL_TOKEN` | Dify HTTP 商品工具鉴权（仅服务端） |
 | `TRYON_DAILY_LIMIT` | 每日试穿次数（默认 5） |
 
 ## 演示边界

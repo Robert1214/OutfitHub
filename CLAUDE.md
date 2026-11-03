@@ -1,6 +1,6 @@
 # CLAUDE.md — outfitexpert-shop 开发规范
 
-> 本文件是开发规范；需求唯一依据是 `memory-bank/prd.md`（v0.7），实施计划是 `memory-bank/plan.md`。
+> 本文件是开发规范；需求唯一依据是 `memory-bank/prd.md`（v0.8），实施计划是 `memory-bank/plan.md`。
 > 开工前先读这三份；与它们冲突时停下提问，不要自行发挥。
 
 ## 1. 项目
@@ -149,8 +149,9 @@ memory-bank/
 | `TENCENT_COS_BUCKET` | COS 桶 | 同上 |
 | `TENCENT_COS_REGION` | COS 地域 | 同上（默认 ap-guangzhou） |
 | `TENCENT_MPS_REGION` | MPS 地域 | 同上（默认 ap-guangzhou） |
-| `DIFY_API_BASE_URL` | Dify API 地址 | 默认 `https://api.dify.ai/v1` |
+| `DIFY_API_BASE_URL` | Dify API 地址 | 本地 `http://localhost/v1` / 默认云端 |
 | `DIFY_API_KEY` | Dify 应用 Key | Dify 后台（仅服务端） |
+| `ASSISTANT_TOOL_TOKEN` | Dify 商品工具鉴权 | 随机生成，仅服务端/Dify 工具配置 |
 | `TRYON_DAILY_LIMIT` | 每日试穿次数 | 默认 5 |
 
 ## 6. 常用命令
@@ -166,6 +167,6 @@ memory-bank/
 
 ## 7. 当前阶段
 
-- 第 1 步：PRD v0.7 已完成（2026-11-02 前端细节调整记录）。
+- 第 1 步：PRD v0.8 已完成（2026-11-02 个人中心与商品互动增强记录）。
 - 第 2 步：本文件 + `memory-bank/plan.md` 已确认。
-- 第 3 步：M2 + 前端结构改版 + M3 + 前端细节调整已完成（2026-11-02）；下一步 M4 AI 试穿。
+- 第 3 步：M2 + 前端改版 + M3 + 个人中心/商品互动增强已完成（2026-11-02）；M5 方案/评测集/契约、商品数据与商品工具、本地 Dify 连通已完成（2026-11-03），下一步 Dify Chatflow baseline，M4 试穿后置。

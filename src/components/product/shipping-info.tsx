@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Ban, MapPin, Truck } from "lucide-react";
+import { Ban, MapPin, RotateCcw, Truck } from "lucide-react";
+import { SizeAdvice } from "@/components/product/size-advice";
+import type { BodyMetrics, SizeProduct } from "@/lib/size-engine";
+import type { ReturnPolicyValue } from "@/lib/products";
 
 const REGIONS = [
   "北京市",
@@ -12,12 +15,28 @@ const REGIONS = [
   "四川省 成都市",
 ];
 
-export function ShippingInfo() {
+export function ShippingInfo({
+  product,
+  body,
+  isLoggedIn,
+  returnPolicy,
+}: {
+  product: SizeProduct & { slug: string };
+  body: BodyMetrics | null;
+  isLoggedIn: boolean;
+  returnPolicy: ReturnPolicyValue;
+}) {
   const [region, setRegion] = useState(REGIONS[1]);
 
   return (
     <section className="rounded-xl border bg-muted/20 p-4 text-sm">
-      <div className="flex items-start gap-3 border-b pb-3">
+      <SizeAdvice
+        product={product}
+        initialBody={body}
+        isLoggedIn={isLoggedIn}
+      />
+
+      <div className="flex items-start gap-3 border-b py-3">
         <Truck className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
         <div className="flex flex-1 flex-wrap items-center justify-between gap-2">
           <span className="text-muted-foreground">发货时间</span>
@@ -49,11 +68,19 @@ export function ShippingInfo() {
       </div>
 
       <div className="flex items-start gap-3 pt-3">
-        <Ban className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+        {returnPolicy === "RETURNABLE" ? (
+          <RotateCcw className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+        ) : (
+          <Ban className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+        )}
         <div>
-          <p className="font-medium">不退换</p>
+          <p className="font-medium">
+            {returnPolicy === "RETURNABLE" ? "支持退换（演示）" : "不退换"}
+          </p>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            本店商品均为孤品，售出后不支持退换；演示环境不产生真实交易。
+            {returnPolicy === "RETURNABLE"
+              ? "本商品支持退换（演示）；演示环境不涉及真实交易。"
+              : "本店商品均为孤品，售出后不支持退换；演示环境不产生真实交易。"}
           </p>
         </div>
       </div>

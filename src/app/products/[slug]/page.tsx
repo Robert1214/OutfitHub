@@ -1,12 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { cache } from "react";
+import { auth } from "@/lib/auth";
 import { AddToCartButton } from "@/components/product/add-to-cart-button";
+import { FavoriteButton } from "@/components/product/favorite-button";
 import { ProductDetailTabs } from "@/components/product/product-detail-tabs";
 import { ProductGallery } from "@/components/product/product-gallery";
+import { RecordFootprint } from "@/components/product/record-footprint";
 import { ShippingInfo } from "@/components/product/shipping-info";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
+import { prisma } from "@/lib/db";
 import { formatPrice } from "@/lib/format";
 import {
   getProductBySlug,
@@ -49,13 +55,44 @@ export default async function ProductDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const [product, recommended] = await Promise.all([
-    getProduct(slug),
-    getRecommendedProducts(8),
-  ]);
+  await connection();
+  const session = await auth();
+  const userId = session?.user?.id;
+  const product = await getProduct(slug);
   if (!product) notFound();
 
+  const [recommended, user, favorite] = await Promise.all([
+    getRecommendedProducts(8),
+    userId
+      ? prisma.user.findUnique({
+          where: { id: userId },
+          select: {
+            heightCm: true,
+            bustCm: true,
+            waistCm: true,
+            hipCm: true,
+          },
+        })
+      : null,
+    userId
+      ? prisma.favorite.findUnique({
+          where: {
+            userId_productId: { userId, productId: product.id },
+          },
+          select: { id: true },
+        })
+      : null,
+  ]);
+
   const sold = product.status === "SOLD";
+  const body = user
+    ? {
+        heightCm: user.heightCm,
+        bustCm: user.bustCm,
+        waistCm: user.waistCm,
+        hipCm: user.hipCm,
+      }
+    : null;
   const recommendations = recommended
     .filter((item) => item.id !== product.id)
     .slice(0, 4)
@@ -69,6 +106,11 @@ export default async function ProductDetailPage({
       >
         ← 返回商品
       </Link>
+
+      <RecordFootprint
+        productId={product.id}
+        enabled={Boolean(userId)}
+      />
 
       <div className="mt-6 grid gap-10 lg:grid-cols-2 lg:items-start">
         <div className="min-w-0 lg:col-start-1 lg:row-start-1">
@@ -128,10 +170,44 @@ export default async function ProductDetailPage({
             ) : null}
           </dl>
 
-          <ShippingInfo />
+          <ShippingInfo
+            product={{
+              refType: product.refType,
+              categorySlug: product.category.slug,
+              fitType: product.fitType,
+              chestCm: product.chestCm,
+              lengthCm: product.lengthCm,
+              waistCm: product.waistCm,
+              hipCm: product.hipCm,
+              pantsLengthCm: product.pantsLengthCm,
+              slug: product.slug,
+            }}
+            body={body}
+            isLoggedIn={Boolean(userId)}
+            returnPolicy={product.returnPolicy}
+          />
 
           <div className="space-y-2">
-            <AddToCartButton product={product} />
+            <div className="flex items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <AddToCartButton product={product} />
+              </div>
+              <FavoriteButton
+                productId={product.id}
+                slug={product.slug}
+                initialFavorited={Boolean(favorite)}
+                isLoggedIn={Boolean(userId)}
+              />
+            </div>
+            <Link
+              href={`/assistant?product=${product.slug}`}
+              className={buttonVariants({
+                variant: "outline",
+                className: "w-full",
+              })}
+            >
+              问导购
+            </Link>
             {sold ? (
               <p className="text-sm text-muted-foreground">
                 这件已经被买走了，{" "}

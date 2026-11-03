@@ -39,7 +39,6 @@ export async function updateProfile(
     await prisma.user.update({
       where: { id: session.user.id },
       data: {
-        name: parsed.data.name ?? null,
         heightCm: parsed.data.heightCm ?? null,
         weightKg: parsed.data.weightKg ?? null,
         bustCm: parsed.data.bustCm ?? null,
