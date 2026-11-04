@@ -68,6 +68,7 @@ x-assistant-token: <从项目 .env.local 的 ASSISTANT_TOOL_TOKEN 读取>
 | `occasionTags` | 逗号分隔，如 `通勤,约会` |
 | `minPriceCents` / `maxPriceCents` | 预算，分 |
 | `similarTo` | 商品 ID；相似款忽略预算 |
+| `contextProductId` | 当前商品 ID；用于搭配/相似款识别，不传则按普通搜索 |
 | `ids` | 逗号分隔，前端/工具按 ID 取卡片 |
 | `limit` | 1~12，默认 8 |
 

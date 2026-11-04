@@ -56,7 +56,46 @@ function extractMarkers(text) {
   };
 }
 
-async function ask(query, anonId, conversationId = "", productSlug = "") {
+function checkBehavior(row, clean, productIds) {
+  switch (row.expected_behavior) {
+    case "ask_skin_undertone":
+      return clean.includes("/assistant/skin.jpg") && productIds.length === 0;
+    case "color_rules":
+      return clean.includes("/assistant/color.jpg");
+    case "color_rules_products":
+      return clean.includes("/assistant/color.jpg") && productIds.length >= 2;
+    case "handoff":
+      return /转人工|人工确认/.test(clean) && productIds.length === 0;
+    default:
+      return "";
+  }
+}
+
+function parseBodyFixture(value) {
+  const parts = String(value ?? "")
+    .split("/")
+    .map((part) => Number(part.trim()));
+  if (
+    parts.length !== 4 ||
+    parts.some((part) => !Number.isFinite(part) || part <= 0)
+  ) {
+    return undefined;
+  }
+  return {
+    heightCm: parts[0],
+    bustCm: parts[1],
+    waistCm: parts[2],
+    hipCm: parts[3],
+  };
+}
+
+async function ask(
+  query,
+  anonId,
+  conversationId = "",
+  productSlug = "",
+  body = undefined,
+) {
   const startedAt = Date.now();
   const response = await fetch(`${BASE}/api/chat`, {
     method: "POST",
@@ -66,6 +105,7 @@ async function ask(query, anonId, conversationId = "", productSlug = "") {
       anonId,
       conversationId: conversationId || undefined,
       productSlug: productSlug || undefined,
+      body,
     }),
   });
 
@@ -155,6 +195,7 @@ for (const [index, row] of selected.entries()) {
   const turns = row.conversation === "multi"
     ? row.input.split("→").map((part) => part.trim()).filter(Boolean)
     : [row.input];
+  const bodyFixture = parseBodyFixture(row.body_fixture);
   let conversationId = "";
   let answer = "";
   let error = "";
@@ -167,6 +208,7 @@ for (const [index, row] of selected.entries()) {
       `eval-${row.id}`,
       conversationId,
       row.context_product,
+      bodyFixture,
     );
     answer += `\n${response.answer}`;
     conversationId = response.conversationId;
@@ -185,12 +227,18 @@ for (const [index, row] of selected.entries()) {
   const invalidIds = extracted.productIds.filter(
     (id) => !actualProducts.some((product) => product.id === id),
   );
+  const behaviorOk = checkBehavior(
+    row,
+    extracted.clean,
+    extracted.productIds,
+  );
 
   results.push({
     id: row.id,
     input: row.input,
     expected_intent: row.expected_intent,
     expected_behavior: row.expected_behavior,
+    behavior_ok: behaviorOk,
     expected_products: expectedProducts.join(";"),
     actual_products: [...actualSlugs].join(";"),
     expected_hits: expectedHits.join(";"),
@@ -216,6 +264,7 @@ const header = [
   "input",
   "expected_intent",
   "expected_behavior",
+  "behavior_ok",
   "expected_products",
   "actual_products",
   "expected_hits",
@@ -261,5 +310,13 @@ console.log(
   }`,
 );
 console.log(`expected product hit rate: ${(expectedHitRate * 100).toFixed(1)}%`);
+const behaviorCases = results.filter((result) => result.behavior_ok !== "");
+const behaviorPass = behaviorCases.filter((result) => result.behavior_ok).length;
+console.log(
+  `behavior checks: ${behaviorPass}/${behaviorCases.length} (${(
+    (behaviorPass / Math.max(1, behaviorCases.length)) *
+    100
+  ).toFixed(1)}%)`,
+);
 console.log(`latency p50: ${percentile(latencies, 50)}ms`);
 console.log(`latency p95: ${percentile(latencies, 95)}ms`);

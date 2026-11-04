@@ -424,7 +424,7 @@ outfitexpert-shop/
 ### 任务
 
 - [x] 12.0 **评测集与契约冻结（第一步）**
-  - 评审说明：`memory-bank/m5-eval.md`（42 条，含用户 10 条 gold cases）。
+  - 评审说明：`memory-bank/m5-eval.md`（49 条，含用户 10 条 gold cases + 7 条肤色用例）。
   - 机器可读评测集：`memory-bank/m5-eval.csv`（v0 已冻结）。
   - 契约：`memory-bank/m5-contract.md`（意图、槽位、商品工具、输出、校验、话术）。
   - 已确认：退换按商品（5 件不可退测试数据）、不承诺当天发货/加急走 handoff、商品上下文、相似款不考虑预算、肤色建议边界、模糊需求先问品类+可选预算、正品话术 B。

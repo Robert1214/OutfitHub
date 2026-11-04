@@ -6,7 +6,9 @@ import { prisma } from "@/lib/db";
 import { allowRateLimit } from "@/lib/rate-limit";
 
 const querySchema = z.object({
-  q: z.string().trim().max(1000).optional(),
+  // Dify 参数提取节点可能把 <think> 推理一起带进 q；
+  // 这里放宽长度，真正的关键词由 sanitizeQuery 清洗后再用。
+  q: z.string().trim().max(8000).optional(),
   category: z.string().trim().max(50).optional(),
   color: z.string().trim().max(30).optional(),
   refType: z.enum(["GARMENT", "ACCESSORIES", "SHOES"]).optional(),
@@ -17,6 +19,7 @@ const querySchema = z.object({
   limit: z.coerce.number().int().min(1).max(12).default(8),
   ids: z.string().trim().max(1000).optional(),
   similarTo: z.string().trim().max(50).optional(),
+  contextProductId: z.string().trim().max(50).optional(),
 });
 
 const productSelect = {
@@ -136,8 +139,14 @@ function normalizeText(value: string): string {
     .replace(/[\s,，。！？、；：""''（）()【】\[\]!?.;:]/g, "");
 }
 
+function normalizeQueryText(value: string): string {
+  return normalizeText(value)
+    .replaceAll("vintage", "复古")
+    .replaceAll("古着", "复古");
+}
+
 function categorySlugsForQuery(query: string): string[] {
-  const normalized = normalizeText(query);
+  const normalized = normalizeQueryText(query);
   const slugs = new Set<string>();
   for (const group of CATEGORY_SYNONYMS) {
     if (group.terms.some((term) => normalized.includes(term))) {
@@ -148,7 +157,7 @@ function categorySlugsForQuery(query: string): string[] {
 }
 
 function queryTokens(query: string): string[] {
-  const chars = Array.from(normalizeText(query));
+  const chars = Array.from(normalizeQueryText(query));
   const tokens = new Set<string>();
 
   for (const char of chars) {
@@ -169,7 +178,7 @@ function scoreProduct(
   query: string,
   preferredCategorySlugs: string[],
 ): number {
-  const normalizedQuery = normalizeText(query);
+  const normalizedQuery = normalizeQueryText(query);
   if (!normalizedQuery) return 0;
 
   const normalizedName = normalizeText(product.name);
@@ -284,6 +293,214 @@ async function findSoldWithAlternatives(
   return [...sold, ...alternatives];
 }
 
+async function findSimilarProducts(
+  targetId: string,
+  limit: number,
+): Promise<ToolProduct[] | null> {
+  const target = await prisma.product.findUnique({
+    where: { id: targetId },
+    select: {
+      id: true,
+      categoryId: true,
+      color: true,
+      styleTags: true,
+      occasionTags: true,
+    },
+  });
+  if (!target) return null;
+
+  // 相似款不考虑预算：同品类 + 风格/场合重叠排序。
+  const candidates = await prisma.product.findMany({
+    where: {
+      id: { not: target.id },
+      status: "ON_SALE",
+      OR: [
+        { categoryId: target.categoryId },
+        ...(target.styleTags.length > 0
+          ? [{ styleTags: { hasSome: target.styleTags } }]
+          : []),
+        ...(target.occasionTags.length > 0
+          ? [{ occasionTags: { hasSome: target.occasionTags } }]
+          : []),
+      ],
+    },
+    select: productSelect,
+    take: 24,
+  });
+
+  return candidates
+    .map((candidate) => {
+      const styleOverlap = candidate.styleTags.filter((tag) =>
+        target.styleTags.includes(tag),
+      ).length;
+      const occasionOverlap = candidate.occasionTags.filter((tag) =>
+        target.occasionTags.includes(tag),
+      ).length;
+      const score =
+        (candidate.categoryId === target.categoryId ? 3 : 0) +
+        styleOverlap * 2 +
+        occasionOverlap +
+        (candidate.color === target.color ? 1 : 0);
+      return { candidate, score };
+    })
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        (a.candidate.priceCents ?? 0) - (b.candidate.priceCents ?? 0),
+    )
+    .slice(0, limit)
+    .map(({ candidate }) => candidate);
+}
+
+const OUTFIT_COMPLEMENTS: Record<string, string[]> = {
+  tops: ["bottoms", "shoes", "accessories"],
+  bottoms: ["tops", "outerwear", "shoes", "accessories"],
+  dresses: ["outerwear", "shoes", "accessories"],
+  outerwear: ["tops", "bottoms", "shoes", "accessories"],
+  accessories: ["tops", "bottoms", "dresses", "shoes"],
+  shoes: ["bottoms", "dresses", "outerwear", "accessories"],
+};
+
+async function findOutfitProducts(
+  targetId: string,
+  limit: number,
+): Promise<ToolProduct[] | null> {
+  const target = await prisma.product.findUnique({
+    where: { id: targetId },
+    select: {
+      id: true,
+      categoryId: true,
+      color: true,
+      styleTags: true,
+      occasionTags: true,
+      category: { select: { slug: true } },
+    },
+  });
+  if (!target) return null;
+
+  const categorySlugs = OUTFIT_COMPLEMENTS[target.category.slug] ?? [];
+  const candidates = await prisma.product.findMany({
+    where: {
+      status: "ON_SALE",
+      id: { not: target.id },
+      ...(categorySlugs.length > 0
+        ? { category: { slug: { in: categorySlugs } } }
+        : {}),
+    },
+    select: productSelect,
+    orderBy: [{ createdAt: "desc" }],
+    take: 50,
+  });
+
+  const categoryBonus = new Map(
+    categorySlugs.map((slug, index) => [slug, categorySlugs.length - index]),
+  );
+
+  return candidates
+    .map((candidate) => {
+      const styleOverlap = candidate.styleTags.filter((tag) =>
+        target.styleTags.includes(tag),
+      ).length;
+      const occasionOverlap = candidate.occasionTags.filter((tag) =>
+        target.occasionTags.includes(tag),
+      ).length;
+      const score =
+        styleOverlap * 3 +
+        occasionOverlap * 2 +
+        (categoryBonus.get(candidate.category.slug) ?? 0) +
+        (candidate.color === target.color ? 1 : 0);
+      return { candidate, score };
+    })
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        (a.candidate.priceCents ?? 0) - (b.candidate.priceCents ?? 0),
+    )
+    .slice(0, limit)
+    .map(({ candidate }) => candidate);
+}
+
+const FRIENDLY_COLOR_SCORE: Array<{ term: string; score: number }> = [
+  { term: "驼", score: 8 },
+  { term: "米白", score: 6 },
+  { term: "奶油白", score: 6 },
+  { term: "米色", score: 5 },
+  { term: "灰", score: 6 },
+  { term: "牛仔", score: 6 },
+  { term: "白", score: 4 },
+  { term: "棕", score: 3 },
+  { term: "黑", score: 2 },
+];
+
+const NEUTRAL_STYLE_TAGS = new Set([
+  "基础",
+  "极简",
+  "温柔",
+  "经典",
+  "中性",
+  "简约",
+  "大气",
+]);
+
+async function findColorFriendlyProducts(limit: number): Promise<ToolProduct[]> {
+  const candidates = await prisma.product.findMany({
+    where: { status: "ON_SALE" },
+    select: productSelect,
+    orderBy: [{ createdAt: "desc" }],
+    take: 100,
+  });
+
+  const scored = candidates
+    .map((candidate) => {
+      const color = normalizeText(candidate.color);
+      const colorScore = FRIENDLY_COLOR_SCORE.reduce(
+        (score, item) => (color.includes(normalizeText(item.term)) ? score + item.score : score),
+        0,
+      );
+      const styleScore = candidate.styleTags.filter((tag) =>
+        NEUTRAL_STYLE_TAGS.has(tag),
+      ).length * 2;
+      return { candidate, score: colorScore + styleScore };
+    })
+    .filter((item) => item.score > 0)
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        (a.candidate.priceCents ?? 0) - (b.candidate.priceCents ?? 0),
+    );
+
+  // 肤色建议最多展示 4 件：上衣 2、外套 1、下装 1。
+  // 与回答 Prompt 的「最多推荐 4 件」保持一致，避免工具给 5 件、
+  // 模型只能挑 4 件时漏掉其中一件。
+  const colorLimit = Math.min(limit, 4);
+  const selected: ToolProduct[] = [];
+  const used = new Set<string>();
+  const take = (predicate: (product: ToolProduct) => boolean, count: number) => {
+    for (const item of scored) {
+      if (selected.length >= colorLimit) return;
+      if (count <= 0) return;
+      if (used.has(item.candidate.id)) continue;
+      if (!predicate(item.candidate)) continue;
+      used.add(item.candidate.id);
+      selected.push(item.candidate);
+      count -= 1;
+    }
+  };
+
+  take((product) => product.category.slug === "tops", 2);
+  take((product) => product.category.slug === "outerwear", 1);
+  take((product) => product.category.slug === "bottoms", 1);
+
+  for (const item of scored) {
+    if (selected.length >= colorLimit) break;
+    if (used.has(item.candidate.id)) continue;
+    used.add(item.candidate.id);
+    selected.push(item.candidate);
+  }
+
+  return selected.slice(0, colorLimit);
+}
+
 function priceFilter(
   minPriceCents: number | undefined,
   maxPriceCents: number | undefined,
@@ -376,6 +593,7 @@ export async function GET(request: Request) {
     limit: url.searchParams.get("limit") ?? undefined,
     ids: url.searchParams.get("ids") ?? undefined,
     similarTo: url.searchParams.get("similarTo") ?? undefined,
+    contextProductId: url.searchParams.get("contextProductId") ?? undefined,
   });
 
   if (!parsed.success) {
@@ -397,6 +615,7 @@ export async function GET(request: Request) {
     limit,
     ids,
     similarTo,
+    contextProductId,
   } = parsed.data;
   const idList = ids
     ? [...new Set(ids.split(",").map((id) => id.trim()).filter(Boolean))].slice(
@@ -408,67 +627,87 @@ export async function GET(request: Request) {
 
   try {
     if (similarTo) {
-      const target = await prisma.product.findUnique({
-        where: { id: similarTo },
-        select: {
-          id: true,
-          categoryId: true,
-          color: true,
-          styleTags: true,
-          occasionTags: true,
-        },
-      });
-      if (!target) {
+      const products = await findSimilarProducts(similarTo, limit);
+      if (!products) {
         return NextResponse.json(
           { error: "相似商品基准不存在" },
           { status: 404 },
         );
       }
-
-      // 相似款不考虑预算：同品类 + 风格/场合重叠排序。
-      const candidates = await prisma.product.findMany({
-        where: {
-          id: { not: target.id },
-          status: "ON_SALE",
-          OR: [
-            { categoryId: target.categoryId },
-            ...(target.styleTags.length > 0
-              ? [{ styleTags: { hasSome: target.styleTags } }]
-              : []),
-            ...(target.occasionTags.length > 0
-              ? [{ occasionTags: { hasSome: target.occasionTags } }]
-              : []),
-          ],
-        },
-        select: productSelect,
-        take: 24,
-      });
-
-      const scored = candidates
-        .map((candidate) => {
-          const styleOverlap = candidate.styleTags.filter((tag) =>
-            target.styleTags.includes(tag),
-          ).length;
-          const occasionOverlap = candidate.occasionTags.filter((tag) =>
-            target.occasionTags.includes(tag),
-          ).length;
-          const score =
-            (candidate.categoryId === target.categoryId ? 3 : 0) +
-            styleOverlap * 2 +
-            occasionOverlap +
-            (candidate.color === target.color ? 1 : 0);
-          return { candidate, score };
-        })
-        .sort(
-          (a, b) =>
-            b.score - a.score ||
-            (a.candidate.priceCents ?? 0) - (b.candidate.priceCents ?? 0),
-        );
-
       return NextResponse.json({
-        products: scored
-          .slice(0, limit)
-          .map(({ candidate }) => toToolProduct(candidate)),
+        products: products.map(toToolProduct),
+      });
+    }
+
+    const normalizedQuery = searchQuery ? normalizeText(searchQuery) : "";
+    const hasSimilarIntent =
+      normalizedQuery.length > 0 &&
+      ["相似", "同款", "类似", "差不多", "像"].some((hint) =>
+        normalizedQuery.includes(hint),
+      );
+    const hasOutfitIntent =
+      normalizedQuery.length > 0 &&
+      ["搭配", "穿搭", "配什么", "怎么穿", "一套", "配一", "配个", "配双"].some(
+        (hint) => normalizedQuery.includes(hint),
+      );
+    const hasColorIntent =
+      normalizedQuery.length > 0 &&
+      [
+        "显白",
+        "显黑",
+        "肤色",
+        "黑黄",
+        "颜色",
+        "冷皮",
+        "暖皮",
+        "中性皮",
+        "白皮",
+        "黄皮",
+        "黑皮",
+        "冷色系",
+        "暖色系",
+        "冷色调",
+        "暖色调",
+        "雾霾蓝",
+        "藏蓝",
+        "冷白",
+        "烟灰",
+        "卡其",
+        "浅棕",
+        "焦糖",
+        "橘红",
+        "姜黄",
+        "杏色",
+        "暖粉",
+        "冰蓝",
+        "浅紫",
+        "莓红",
+        "薄荷绿",
+        "墨绿",
+      ].some((hint) => normalizedQuery.includes(hint));
+
+    if (contextProductId && hasSimilarIntent) {
+      const products = await findSimilarProducts(contextProductId, limit);
+      if (products) {
+        return NextResponse.json({
+          products: products.map(toToolProduct),
+        });
+      }
+    }
+
+    if (contextProductId && hasOutfitIntent) {
+      const products = await findOutfitProducts(contextProductId, limit);
+      if (products) {
+        return NextResponse.json({
+          products: products.map(toToolProduct),
+        });
+      }
+    }
+
+    if (!contextProductId && hasColorIntent) {
+      const products = await findColorFriendlyProducts(limit);
+      return NextResponse.json({
+        products: products.map(toToolProduct),
       });
     }
 

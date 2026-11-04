@@ -150,6 +150,6 @@ Authorization: Bearer <ASSISTANT_TOOL_TOKEN>
 
 ## 6. 评测输入
 
-- 机器可读评测集：`memory-bank/m5-eval.csv`（42 条）。
+- 机器可读评测集：`memory-bank/m5-eval.csv`（49 条，含肤色 C01–C07）。
 - 每条 case 的 `context_product`、`body_fixture`、`login`、`conversation` 必须注入测试环境。
 - 评测看行为与约束，不要求逐字一致。

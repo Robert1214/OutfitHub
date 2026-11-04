@@ -18,6 +18,9 @@
   - `guide_login` / `guide_orders`：引导登录/订单页
   - `refuse`：拒绝越界或危险请求
   - `handoff`：转人工
+  - `ask_skin_undertone`：肤色问题先问冷暖，展示 skin.jpg，不直接推荐
+  - `color_rules`：展示 color.jpg，并按冷/暖/中性皮规则回答
+  - `color_rules_products`：展示 color.jpg，并至少推荐 2 件替代色商品
 - 评测判断**看行为和约束，不要求逐字一致**；商品推荐用 slug 做相关性标注。
 - 建议的意图枚举：`product_info`、`product_search`、`outfit_recommend`、`size_advice`、`policy_faq`、`order_logistics`、`smalltalk`、`handoff`。
 
@@ -29,7 +32,7 @@
 | G02 | 这个码的数据是多少，我穿这个码会紧吗？ | ctx=ivory-knit-cardigan；body=165/88/68/92；login=1 | size_advice | size_advice | 当前商品；胸围 96cm，合身（放量 8cm） | 不输出 S/M/L |
 | G03 | 这一款属于什么风格？给我介绍介绍。 | ctx=ivory-knit-cardigan；login=1 | product_info | answer_product | 当前商品；针织/温柔/通勤，短款开衫 | 依据 tags + description，不编造 |
 | G04 | 我看中了这件，有什么搭配推荐吗？ | ctx=ivory-knit-cardigan；login=1 | outfit_recommend | recommend_products | 至少 2 件：black-wide-leg-pants、canvas-tote-bag、white-sneakers | 必须走商品工具；不能推荐 SOLD 的 retro-loafers |
-| G05 | 我属于黑黄皮肤，有什么不显黑的颜色或款式推荐？ | ctx=null；login=1 | product_search / style | recommend_products | ivory-knit-cardigan、camel-wool-coat、denim-midi-skirt、grey-knit-vest 等中性色 | 只做一般色彩建议，不做肤色歧视/医疗判断 |
+| G05 | 我属于黑黄皮肤，有什么不显黑的颜色或款式推荐？ | ctx=null；login=1 | handoff | handoff | 无；不直接推荐，询问转人工或先按场合/版型筛选 | 黑黄皮按肤色较暗处理；不评价肤色 |
 | G06 | 我想买一件不太浮夸、舒服的，适合通勤上班穿的。 | ctx=null；login=1 | product_search | ask_clarification | 追问品类和预算；预算可选，不给预算就按品类推荐 | 不要一次推一堆；品类必须问 |
 | G07 | 我对这件不是特别满意，有没有和这件相似的款？ | ctx=ivory-knit-cardigan；login=1 | product_search | recommend_products | 同品类/同风格候选：grey-knit-vest、black-silk-shirt | 「同款/相似款」场景**不考虑预算**；不能推荐售罄商品 |
 | G08 | 我想要中性风穿搭，男生可以尝试吗？ | ctx=null；login=1 | style / product_search | answer_product + recommend_products | black-silk-shirt、black-wide-leg-pants、beige-trench-coat、white-sneakers | 不做性别刻板判断；说明可按风格选 |
@@ -49,7 +52,7 @@
 | A07 | 有裙子吗？ | ctx=null；login=1 | product_search | recommend_products | floral-midi-dress | 明确品类，不需要过度澄清 |
 | A08 | 我想买衣服。 | ctx=null；login=1 | product_search | ask_clarification | 无 | 追问品类/场合/预算之一 |
 | A09 | 预算 500 以内，推荐一下。 | ctx=null；login=1 | product_search | ask_clarification / recommend_products | 预算内商品候选 | 可先问品类；不得推荐超预算商品 |
-| A10 | 1000 以内，想参加婚礼，帮我配一套。 | ctx=null；login=1 | outfit_recommend | recommend_products | floral-midi-dress + silver-hoop-earrings 等 | 复杂搭配可进 Agent；总价不超预算 |
+| A10 | 预算 1000 以内，想搭一套 Vintage/古着风，帮我配一套。 | ctx=null；login=1 | outfit_recommend | recommend_products | leather-belt + denim-midi-skirt | Vintage/古着；不推荐 SOLD 的 retro-loafers；总价不超预算 |
 | A11 | 想要黑色、通勤、300 以内的上衣。 | ctx=null；login=1 | product_search | recommend_products / no_result | 无严格匹配；可说明并建议放宽预算 | 不要推荐 459 元的 black-silk-shirt 当作 300 内 |
 | A12 | 春秋通勤外套，预算 800。 | ctx=null；login=1 | product_search | recommend_products | beige-trench-coat | 不推荐 899 元的 camel-wool-coat |
 | A13 | 小个子适合的短款上装。 | ctx=null；login=1 | product_search | recommend_products | ivory-knit-cardigan、grey-knit-vest | 不做身高承诺；可给长度提示 |
@@ -72,6 +75,18 @@
 | A30 | 刚才那件配什么鞋？ | ctx=ivory-knit-cardigan；login=1；multi-turn | outfit_recommend | recommend_products | white-sneakers | 不推荐已售出的 retro-loafers |
 | A31 | 这件可以退吗？ | ctx=ivory-knit-cardigan；login=1 | policy_faq | answer_product | 当前商品；可退（演示） | 可退商品用例 |
 | A32 | 这件可以退吗？ | ctx=silver-hoop-earrings；login=1 | policy_faq | answer_product | 当前商品；不可退（演示） | 不可退商品用例 |
+
+### 2.1 肤色与配色 7 条（2026-11-04 新增）
+
+| ID | 输入 | 上下文 / fixture | 期望意图 | 期望行为 | 期望商品 / 引用 | 备注 |
+| --- | --- | --- | --- | --- | --- | --- |
+| C01 | 我是白皮，有什么推荐？ | ctx=null；login=1 | product_search | ask_skin_undertone | 无；展示 skin.jpg | 白皮也先问冷暖 |
+| C02 | 我是冷皮。 | ctx=null；login=1 | product_search | color_rules | 展示 color.jpg；推荐冷色，避雷色不出卡片 | 冷皮规则 |
+| C03 | 我是暖皮。 | ctx=null；login=1 | product_search | color_rules | 展示 color.jpg；推荐暖色 | 暖皮规则 |
+| C04 | 我是中性皮。 | ctx=null；login=1 | product_search | color_rules | 展示 color.jpg；说明大部分颜色可穿 | 中性皮 |
+| C05 | 我肤色比较亮，有什么推荐？ | ctx=null；login=1 | product_search | recommend_products | ivory-knit-cardigan；grey-knit-vest；denim-midi-skirt；camel-wool-coat | 肤色较亮可直接推荐 |
+| C06 | 我肤色比较暗，有什么推荐？ | ctx=null；login=1 | handoff | handoff | 无 | 不推荐；询问转人工或先按场合/版型筛选 |
+| C07 | 我是冷皮，但店里没有藏蓝，有什么推荐？ | ctx=null；login=1 | product_search | color_rules_products | 展示 color.jpg；推荐 grey-knit-vest、denim-midi-skirt | 不能只给色卡；不编造商品 |
 
 ## 3. 已确认的产品决策（2026-11-03）
 
@@ -131,13 +146,23 @@
 - **退换是商品级事实，不是 RAG 知识**：`returnPolicy` 走商品工具；知识库只解释通用规则。
 - **同款/相似款忽略预算**要单独标注，避免评测时误判为「超预算」。
 - **不要只测正常问题**：越界、售罄、无结果、Prompt 注入、错误 ID 必须进入评测集。
-- **先跑 42 条 baseline**，再把真实失败案例补进回归集；不要一开始堆到 200 条。
+- **先跑 49 条 baseline**（42 条通用 + 7 条肤色），再把真实失败案例补进回归集；不要一开始堆到 200 条。
 - **人工判断优先**：导购的「相关性」很难完全自动打分，前几轮建议 100% 人工抽检，后面再用 LLM-as-judge 辅助。
 - **每条失败必须能归因**：意图、槽位、工具、检索、生成、格式、延迟、成本，不能只写「回答不好」。
 
-## 5. 下一步
+## 5. Baseline 记录（2026-11-04）
+
+- 用例：49 / 49
+- 无效商品 ID：0%
+- 行为检查（肤色）：7 / 7
+- 最新单轮：商品命中率 86.4%；A29 出现一次上游超时
+- A12 / A29 / C05 单独重测通过；按重测修正，商品命中约 95.5%
+- 真实剩余缺口：G08 中性风 2/4、A10 婚礼配饰 1/2
+- 备注：DeepSeek 上游偶发 SSL/超时会让单轮 baseline 波动；后续应重跑失败 case 或记录多次结果的中位数。
+
+## 6. 下一步
 
 - 退换测试数据、正品话术（B）、加急备注（A）已确认。
-- 机器可读评测集：`memory-bank/m5-eval.csv`（42 条，已冻结 v0）。
+- 机器可读评测集：`memory-bank/m5-eval.csv`（49 条，含肤色 C01–C07）。
 - 契约：`memory-bank/m5-contract.md`（意图、商品工具、输出、校验）。
 - 下一步：12.1 检查本地 Dify 版本、模型和 HTTP 工具连通性；之后再实现商品工具。

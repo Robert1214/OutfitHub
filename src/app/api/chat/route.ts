@@ -5,6 +5,18 @@ import { auth } from "@/lib/auth";
 import { persistAssistantLog } from "@/lib/assistant-logs";
 import { prisma } from "@/lib/db";
 import { allowRateLimit } from "@/lib/rate-limit";
+import {
+  getSizeAdvice,
+  type BodyMetrics,
+  type SizeProduct,
+} from "@/lib/size-engine";
+
+const bodySchema = z.object({
+  heightCm: z.number().int().min(100).max(250).nullable().optional(),
+  bustCm: z.number().int().min(40).max(200).nullable().optional(),
+  waistCm: z.number().int().min(30).max(200).nullable().optional(),
+  hipCm: z.number().int().min(40).max(200).nullable().optional(),
+});
 
 const chatSchema = z.object({
   query: z.string().trim().min(1, "请输入问题").max(500, "问题太长"),
@@ -21,7 +33,102 @@ const chatSchema = z.object({
     .max(120)
     .regex(/^[a-z0-9-]+$/, "商品标识不正确")
     .optional(),
+  body: bodySchema.optional(),
 });
+
+const EMPTY_BODY: BodyMetrics = {
+  heightCm: null,
+  bustCm: null,
+  waistCm: null,
+  hipCm: null,
+};
+
+const BODY_FIELD_LABEL: Record<keyof BodyMetrics, string> = {
+  heightCm: "身高",
+  bustCm: "胸围",
+  waistCm: "腰围",
+  hipCm: "臀围",
+};
+
+type SizeContextProduct = Omit<SizeProduct, "categorySlug"> & {
+  id: string;
+  name: string;
+  category: { slug: string };
+};
+
+async function findSoldProductForQuery(query: string) {
+  const normalizedQuery = query.replace(/\s+/g, "");
+  const sold = await prisma.product.findMany({
+    where: { status: "SOLD" },
+    select: { id: true, name: true, categoryId: true },
+  });
+
+  return (
+    sold.find((product) =>
+      normalizedQuery.includes(product.name.replace(/\s+/g, "")),
+    ) ?? null
+  );
+}
+
+async function fallbackProductIds(
+  contextProduct: { id: string } | null,
+  query: string,
+): Promise<string[]> {
+  if (contextProduct) return [contextProduct.id];
+
+  const sold = await findSoldProductForQuery(query);
+  if (!sold) return [];
+
+  const alternatives = await prisma.product.findMany({
+    where: {
+      status: "ON_SALE",
+      categoryId: sold.categoryId,
+      id: { not: sold.id },
+    },
+    select: { id: true },
+    orderBy: [{ createdAt: "desc" }],
+    take: 2,
+  });
+
+  return [sold.id, ...alternatives.map((product) => product.id)];
+}
+
+function buildSizeAdviceText(
+  product: SizeContextProduct | null,
+  body: BodyMetrics | null,
+): string {
+  if (!product) {
+    return "请告诉我是哪一件商品，以及你的身高/胸围（上装）或腰围/臀围（下装）。";
+  }
+
+  const advice = getSizeAdvice(body ?? EMPTY_BODY, {
+    refType: product.refType,
+    categorySlug: product.category.slug,
+    fitType: product.fitType,
+    chestCm: product.chestCm,
+    lengthCm: product.lengthCm,
+    waistCm: product.waistCm,
+    hipCm: product.hipCm,
+    pantsLengthCm: product.pantsLengthCm,
+  });
+  const marker = `\n\n[[PRODUCTS:${product.id}]]`;
+
+  if (advice.kind === "missing-body") {
+    return `${product.name}：请先补充${advice.requiredFields
+      .map((field) => BODY_FIELD_LABEL[field])
+      .join("、")}，我才能判断合身程度。${marker}`;
+  }
+
+  if (advice.kind === "missing-product") {
+    return `${product.name}：${advice.detail}${marker}`;
+  }
+
+  if (advice.kind === "not-applicable") {
+    return `${product.name}：${advice.detail}${marker}`;
+  }
+
+  return `${product.name}：${advice.summary}。${advice.detail}${marker}`;
+}
 
 type DifyUsage = {
   prompt_tokens?: number;
@@ -33,7 +140,7 @@ type DifyEvent = {
   answer?: string;
   conversation_id?: string;
   message?: string;
-  data?: { error?: string };
+  data?: { error?: string; status?: string };
   usage?: DifyUsage;
   metadata?: { usage?: DifyUsage; model_name?: string };
 };
@@ -166,6 +273,32 @@ export async function POST(request: Request) {
     );
   }
 
+  const savedBody =
+    session?.user?.id && contextProduct
+      ? await prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: {
+            heightCm: true,
+            bustCm: true,
+            waistCm: true,
+            hipCm: true,
+          },
+        })
+      : null;
+  const hasSavedBody =
+    savedBody !== null &&
+    Object.values(savedBody).some((value) => value !== null);
+  const requestBody: BodyMetrics | null = parsed.data.body
+    ? {
+        heightCm: parsed.data.body.heightCm ?? null,
+        bustCm: parsed.data.body.bustCm ?? null,
+        waistCm: parsed.data.body.waistCm ?? null,
+        hipCm: parsed.data.body.hipCm ?? null,
+      }
+    : null;
+  const measurements = hasSavedBody ? savedBody : requestBody;
+  const sizeAdvice = buildSizeAdviceText(contextProduct, measurements);
+
   let difyResponse: Response;
   try {
     difyResponse = await fetch(`${apiBase}/chat-messages`, {
@@ -176,14 +309,17 @@ export async function POST(request: Request) {
         Accept: "text/event-stream",
       },
       body: JSON.stringify({
-        inputs: contextProduct
-          ? {
-              product_id: contextProduct.id,
-              product_name: contextProduct.name,
-              product_slug: contextProduct.slug,
-              product_context: JSON.stringify(contextProduct),
-            }
-          : {},
+        inputs: {
+          // 即使没有商品上下文也显式传空字符串：
+          // Dify 的 product_id 可能被设为必填，缺字段会导致整个工作流失败。
+          product_id: contextProduct?.id ?? "",
+          product_name: contextProduct?.name ?? "",
+          product_slug: contextProduct?.slug ?? "",
+          product_context: contextProduct
+            ? JSON.stringify(contextProduct)
+            : "",
+          size_advice: sizeAdvice,
+        },
         query: parsed.data.query,
         response_mode: "streaming",
         conversation_id: parsed.data.conversationId ?? "",
@@ -246,6 +382,26 @@ export async function POST(request: Request) {
         controller.enqueue(encoder.encode(`${JSON.stringify(value)}\n`));
       };
 
+      let markerEnsured = false;
+      const ensureProductMarker = async () => {
+        if (markerEnsured || !fullAnswer.trim()) return;
+        markerEnsured = true;
+
+        const ids = await fallbackProductIds(contextProduct, parsed.data.query);
+        if (ids.length === 0) return;
+
+        // 有商品上下文时，如果模型已经输出过卡片，不再强行追加当前商品；
+        // 无上下文但用户问的是售罄商品时，即使模型只标了售罄款，
+        // 也补上同品类替代款。
+        if (contextProduct && fullAnswer.includes("[[PRODUCTS:")) return;
+        const missing = ids.filter((id) => !fullAnswer.includes(id));
+        if (missing.length === 0) return;
+
+        const marker = `\n\n[[PRODUCTS:${[...new Set(missing)].join(",")}]]`;
+        fullAnswer += marker;
+        send({ type: "delta", text: marker });
+      };
+
       try {
         const reader = difyResponse.body!.getReader();
         let finished = false;
@@ -279,6 +435,20 @@ export async function POST(request: Request) {
               }
             }
 
+            if (
+              event.event === "workflow_finished" &&
+              event.data?.status === "failed"
+            ) {
+              streamError = event.data.error ?? "workflow_failed";
+              console.error("导购助手工作流失败：", streamError);
+              send({
+                type: "error",
+                message: "导购助手暂时不可用，请稍后重试",
+              });
+              finished = true;
+              break;
+            }
+
             if (event.event === "message_end") {
               const tail = reasoning.flush();
               if (tail) {
@@ -286,6 +456,7 @@ export async function POST(request: Request) {
                 fullAnswer += tail;
                 send({ type: "delta", text: tail });
               }
+              await ensureProductMarker();
               send({ type: "done", conversationId });
               finished = true;
               break;
@@ -313,6 +484,7 @@ export async function POST(request: Request) {
             fullAnswer += tail;
             send({ type: "delta", text: tail });
           }
+          await ensureProductMarker();
           send({ type: "done", conversationId });
         }
       } catch (error) {
