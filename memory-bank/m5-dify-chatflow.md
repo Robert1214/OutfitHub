@@ -1,8 +1,8 @@
 # M5 Dify Chatflow 搭建稿 v0
 
-> 目标：从当前“最小测试流”升级为可评测的导购 baseline。
-> 当前问题：HTTP 节点对所有请求都调用、没有把工具结果交给回答 LLM，回答是通用聊天，且带 `<think>`。
-> 原则：先做最小商品分支，跑通后再加政策/尺码/转人工。
+> 当前状态（2026-11-09）：用户已有 Wardrobe 导购 Chatflow，并已接入项目。截图确认分类、参数提取、HTTP 商品查询、政策检索、回答及尺码/转人工出口；后续沿用现有流程检查和补强。
+> 本文保留早期搭建稿及后续增量配置记录，不能将其中“当前问题”“待添加”“跑通后再加”等历史步骤当作今日待办，也不能把模板当作当前已发布 Prompt。现状入口见 `plan.md` §12、§17。
+> 早期目标：从最小测试流升级为可评测 baseline；早期问题为所有请求都调用 HTTP、工具结果未交给回答 LLM、输出带 `<think>`。这些历史描述不代表本轮复现结果。
 
 ## 1. 目标结构
 
@@ -412,3 +412,231 @@ memory-bank/m5-color-guide.md
 - 没有 `<think>` 内容展示给用户
 
 跑通后再加政策、尺码、转人工分支。
+
+## 12. 当前参数链路与需求提取草稿（2026-11-09）
+
+用户截图确认 HTTP URL 为 `http://host.docker.internal:3000/api/assistant/products`，参数为 `q=参数提取.text`、`limit=5`、`contextProductId=用户输入中的商品变量`；最后一项截图显示名称被截断，结合已有文档预期为 `product_id`，仍应核对变量全名。当前没有独立传递品类、风格或预算。
+
+参数提取目前是 LLM 节点，要求只提取一个短关键词，记忆和结构化输出在所提供截图中均关闭。以下为局部修改草稿，复用该节点，先单独验证需求提取。不是已发布配置，也不是三件商品搭配用例的执行记录。
+
+### 12.1 提取节点配置草稿
+
+1. 开启该节点记忆；若当前模型配置支持推理标签分离，可开启以避免把推理内容混入解析文本。记忆窗口不强制设为 10；此前回答节点截图中窗口限制开关未开启，不能把旁边灰色的 10 当作生效设置。
+2. 将 SYSTEM 替换为以下提示词；USER 保留现有 query 引用，并追加“当前商品资料”标签及通过变量选择器插入的 Start `product_context`。不要手打伪造变量路径。
+3. 用户已说明当前接入模型不支持结构化输出：保持该开关关闭，不要求换模型。使用下方完整 SYSTEM 提示词，让普通 text 输出包含 JSON 文本；原“只输出关键词、不要 JSON”属于旧提示词，需整体替换，不与新提示词叠加。`m5-query-extraction.schema.json` 仅保留为字段校验参考，不要求导入不受支持的模型配置。
+4. 单独运行该提取节点，检查本节例子；这一步不调用商品接口，不需要样例先入库。单节点运行不能自动证明多轮记忆正确，多轮在接线后用真实同一会话另验。
+5. 暂不发布此中间配置，不运行整条预览链：HTTP 当前仍引用旧的 `.text` 作为 q，不能将整段 JSON 当成搜索词。下一步拟在现有提取节点与 HTTP 之间加入代码解析/校验节点，再完成字段映射及接口改动；代码节点尚未配置，接口尚未修改。JSON 语法、字段类型或枚举错误必须显式报错，不能回退为空条件查全店；格式通过也不代表需求理解正确。
+
+```text
+你是服装导购的需求提取器。根据顾客当前消息、可用对话历史和当前商品资料，只输出一个合法的 JSON 对象，不回答顾客，不推荐商品，不输出解释、Markdown 代码围栏或推理内容。
+
+输出必须包含以下所有字段，字段名不变，不增加其他字段。下面展示无已知条件时的字段格式；实际值按顾客消息与可用历史填写，不直接照抄默认值：
+{"q":"","intent":"unknown","category":"","styleTags":[],"budgetCents":null,"budgetScope":"none","includeCurrentProduct":null,"otherRequirements":[],"missingInformation":[]}
+
+q、intent、category、budgetScope 是字符串；styleTags、otherRequirements、missingInformation 是字符串数组；budgetCents 是非负整数或 null；includeCurrentProduct 是 true、false 或 null。使用 JSON 的双引号，不能写注释或尾随逗号。null 表示未知，不写成字符串 "null"。
+
+1. 顾客只修改一项条件时，只更新该项，保留历史中仍有效的商品指代、品类、风格和其他条件。新的明确要求覆盖旧要求；顾客明确换话题或重置需求时，不机械沿用旧条件。历史缺失时不要猜测。
+2. q 是简短的正向检索关键词，保留需要寻找的具体商品类型，例如“摇滚裤子”。买当前上衣再配裤子时，q 应描述所找裤子，不能只留下上衣名称。否定条件放进 otherRequirements，不作为正向检索词。
+3. intent 根据顾客要完成的任务判断，不按本次查询几件商品判断。独立寻找商品、没有搭配对象或组合要求时为 search；明确为某件服装寻找搭配、或要求组合时为 outfit，即使本次只需查一条裤子。明确找相似款为 similar；问当前商品事实为 product_info；肤色或配色咨询为 color_advice；无法判断为 unknown。顾客续轮只修改预算等条件时，保留原任务意图；不能仅因需要购买当前商品或有总预算就自动判断为 outfit。
+4. category 表示本次要查找的候选品类：上装 tops、下装 bottoms、连衣裙 dresses、外套 outerwear、配饰 accessories、鞋 shoes。为当前上衣配裤子时填 bottoms。没有明确候选品类或需要多个品类时填空字符串，并在 otherRequirements 保留明确的组合要求；不能擅自缩成一个品类。
+5. styleTags 只提取顾客明确要求的风格；没有则为空数组。不能因为当前商品有“休闲”标签，就自行认定顾客要休闲风搭配。当前商品资料用于指代，不是新增顾客要求的依据。
+6. budgetCents 只记录顾客预算并换算为整数分，500 元为 50000；不计算剩余预算，不改变商品价格。没有预算为 null，不能填 0。
+7. budgetScope：单件上限为 item，整套或多件合计上限为 total，已给金额但范围不清楚为 unknown，没有预算为 none。不能把整套预算当作单件上限。
+8. includeCurrentProduct：明确一起购买搭配主体为 true；明确已拥有它、预算仅用于新买搭配品时为 false；含义不清楚或不适用时为 null。不能仅因为页面有当前商品就默认需要购买它。
+9. otherRequirements 保留其余明确条件，包括场合、颜色、禁配、排除品类和指定候选范围。不要编造店主审美规则、商品事实或 ID。
+10. missingInformation 只记录理解本次需求必需但未知的信息；预算不是必填。历史与当前消息已说明的信息不要重复列为缺失。只改预算但没有可用历史时，记录原需求未知，不能自行补造。
+11. 相似款场景仍如实提取顾客提到的预算，不在提取阶段丢弃；是否使用预算由已确认的业务规则在后续处理。
+```
+
+### 12.2 单节点提取检查
+
+输入：“我想买这件滚石 T 恤，再配一条摇滚风裤子，两件总预算 500 元，不要鞋。”
+
+应识别 `intent=outfit`、`category=bottoms`、`styleTags=["摇滚"]`、`budgetCents=50000`、`budgetScope=total`、`includeCurrentProduct=true`，并保留“不要鞋”。q 应表达摇滚裤子，具体措辞可不同。该检查不要求返回商品、计算组合价格或验证搭配规则；不能记成 S-E01–S-E03 通过。
+
+### 12.3 后续接口配套，尚未实现
+
+- HTTP 不得把整个结构化对象或 JSON 文本传入 q。需映射其中 q、category、styleTags；数组序列化应匹配接口逗号分隔契约，不直接假定 Dify 数组会自动正确转换。
+- 当前接口的 `maxPriceCents` 是单件过滤。`budgetCents` 与预算范围、是否计入当前商品需由后端按整数分核算；未知范围需保留澄清信息，不能把 null/空字符串变成 0，也不能默认提高预算。
+- 带当前商品的搭配分支目前未接收品类/预算等过滤条件。需局部修复，并保留已确认的相似款预算规则；不能仅添加 HTTP 参数就宣称过滤已生效。
+- 对于样例内合适但超预算的组合，需要提供用于解释的价格与差额依据，区分可推荐结果与不满足预算的候选。不能把超预算候选标为可购买推荐，也不能因为过滤掉它就推断全店无货。
+- 具体裤子类型、店主禁配和样例信息仍需可读取的数据支持；提取出字段不等于工具已经执行这些条件。
+
+### 12.4 中间配置的预览结果（2026-11-09，用户截图）
+
+用户提供了上述“500 元、摇滚风裤子、不要鞋”问题的完整流程回复截图，而非参数提取节点输出。本次已得到最终回复；此前 402 不再是这次截图的可见阻塞，不能据此推断所有模型节点的额度均已恢复。
+
+截图原始回复（按可见正文转录）：
+
+> 这次查询结果里只看到一双白色板鞋，既不是摇滚风裤子，也不符合你“不要鞋”的要求；同时我这边没有你这件滚石 T 恤的商品资料和价格，所以暂时无法确认 500 元总预算是否够。
+>
+> 请把这件滚石 T 恤的商品链接或商品卡片发我一下，我再按“T 恤 + 摇滚风裤子、总预算 500 元、不要鞋”帮你筛选。
+
+判断与下一步：
+
+- 可直接观察：回复拒绝将鞋子作为符合需求的推荐，未编造 T 恤价格；顾客搭配任务仍未完成。“只看到白色板鞋”是模型对查询结果的描述，尚无 HTTP 原始 body 佐证。
+- 当前三件样例未接入商品工具；聊天中给 AI 的资料不自动进入 Dify。尚无本次 Start 输入证据，不能认定价格应已传给回答节点；本次不能记为 S-E02 正式验收。
+- 待验证假设：若参数提取已输出 JSON，但 HTTP 仍将 `.text` 整体传给 q，接口会把 JSON 当检索词。现有 `sanitizeQuery` 截取末尾 80 字符，`categorySlugsForQuery` 以包含“鞋”等词判断类别，未识别否定；因此尾部“不要鞋”有可能触发鞋类加分。必须用本次节点输出和 HTTP 输入核验，不能仅凭最终回复确认根因。
+- 下一步先读取这一次运行的「参数提取 → 上次运行 → 输出 → text」，不重复运行、不改回答 Prompt；随后核对 HTTP 实际 q 和 body。确认后配置解析/校验与字段映射，不能继续把完整 JSON 当作 q。
+
+### 12.5 参数提取实际输出与缺口（用户随后提供）
+
+本次 `text` 内容如下，未保存模型推理内容或凭证：
+
+```json
+{"intent":"outfit","category":"bottoms","styleTags":["摇滚风"],"budgetCents":50000,"budgetScope":"total","includeCurrentProduct":true,"otherRequirements":["不要鞋"],"missingInformation":[]}
+```
+
+- 已识别搭配意图、下装、摇滚风、500 元总预算、包含当前商品和排除鞋。
+- 缺少必需的 `q` 字段，不能据此判定提取契约通过。先在现有提取节点 SYSTEM 补充：“输出必须包含 q。q 是要查找商品的正向关键词，不能包含排除条件；本题为摇滚风裤子，不能省略 q，也不能将整段 JSON 作为 q。”示例仅用于解释本题，实际 q 必须随用户需求变化，不能在 HTTP 中写死。
+- `摇滚风` 为可理解的自然语言标签，但接口 `styleTags` 当前按数据库标签精确匹配，接线时需核对受控标签或明确映射；不能未经处理就当成数据库已有的 `摇滚`。
+- HTTP 配置截图仍为 `q=参数提取.text`；若本次运行沿用该映射，会把上述 JSON 整体传给 q。以下解析代码尚未接入 Dify。真实 HTTP 输入/body 尚未提供，不能把本地复现当成完整调用追踪。
+
+本地复现结果：直接读取当前接口源码中的 `sanitizeQuery`、`normalizeText`、`normalizeQueryText`、`categorySlugsForQuery` 与品类同义词配置，输入上述原始 text；清洗后为 `includeCurrentProduct":true,"otherRequirements":["不要鞋"],"missingInformation":[]}`，识别品类为 `["shoes"]`。未调用 HTTP、数据库或模型；该结果证明错误映射能触发鞋类偏好，不能替代实际请求日志或证明最终唯一返回哪件商品。
+
+### 12.6 普通 JSON 文本的解析校验代码草稿
+
+用于后续 Dify JavaScript 代码节点：输入 `text` 引用参数提取节点的 `.text`，不引用推理字段。返回 `q`、`category`、`styleTags`、`requirements` 四项，均为 String；其中 `requirements` 保留原始需求字段及 null，供后续预算与规则处理，不把总预算映射成单件上限。styleTags 仅进行逗号序列化，不偷偷改写标签。
+
+```javascript
+function main({ text }) {
+  if (typeof text !== "string" || !text.trim()) {
+    throw new Error("需求提取输出为空，未执行商品查询");
+  }
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error("需求提取输出不是合法 JSON，未执行商品查询");
+  }
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error("需求提取输出必须是 JSON 对象");
+  }
+  const fields = ["q", "intent", "category", "styleTags", "budgetCents",
+    "budgetScope", "includeCurrentProduct", "otherRequirements", "missingInformation"];
+  for (const key of fields) {
+    if (!Object.prototype.hasOwnProperty.call(data, key)) {
+      throw new Error("需求提取缺少字段：" + key);
+    }
+  }
+  if (Object.keys(data).some((key) => !fields.includes(key))) {
+    throw new Error("需求提取包含未约定字段");
+  }
+  if (typeof data.q !== "string" || data.q.length > 80) {
+    throw new Error("q 必须是最多 80 字符的检索词");
+  }
+  const enums = {
+    intent: ["search", "outfit", "similar", "product_info", "color_advice", "unknown"],
+    category: ["tops", "bottoms", "dresses", "outerwear", "accessories", "shoes", ""],
+    budgetScope: ["item", "total", "unknown", "none"]
+  };
+  for (const key of Object.keys(enums)) {
+    if (!enums[key].includes(data[key])) throw new Error("字段取值不合法：" + key);
+  }
+  for (const key of ["styleTags", "otherRequirements", "missingInformation"]) {
+    if (!Array.isArray(data[key]) || data[key].some((v) => typeof v !== "string" || !v.trim())) {
+      throw new Error("字段必须是非空字符串组成的数组：" + key);
+    }
+  }
+  if (data.styleTags.length > 8 || data.styleTags.some((v) => /[,，]/.test(v)) ||
+      data.styleTags.join(",").length > 300) {
+    throw new Error("风格标签不符合商品接口格式");
+  }
+  if (data.budgetCents !== null && (!Number.isSafeInteger(data.budgetCents) || data.budgetCents < 0)) {
+    throw new Error("预算必须是非负整数分或 null");
+  }
+  if ((data.budgetCents === null) !== (data.budgetScope === "none")) {
+    throw new Error("预算金额与预算范围不一致");
+  }
+  if (data.includeCurrentProduct !== null && typeof data.includeCurrentProduct !== "boolean") {
+    throw new Error("includeCurrentProduct 必须是布尔值或 null");
+  }
+  return {
+    q: data.q.trim(),
+    category: data.category,
+    styleTags: data.styleTags.join(","),
+    requirements: JSON.stringify(data)
+  };
+}
+```
+
+本代码仅校验结构、类型和明显矛盾，不能证明风格/品类语义正确，也不执行预算、禁配或库存判断。接入时解析失败应阻断 HTTP 调用，不能设置空值默认结果继续查全店。q 为空、需澄清和 unknown 意图的路由仍须在调用工具前处理；尚未接线前只做节点测试。已确认的整套预算、样例搭配规则仍需后续接口与数据配套，不能发布中间配置。
+
+本地校验已通过：拒绝本次缺 q 输出、非法 JSON、非对象、错误字段类型/枚举、负预算、金额与范围矛盾、未约定字段及逗号混入标签；补齐 q 的样本可拆分正向检索词与排除条件，保留总预算、null 与 0 的区别。测试直接运行本文代码段，未连接 Dify；实际节点尚待用户配置和验证。
+
+### 12.7 用户反馈解析输出（2026-11-10）
+
+用户提供四个输出字段：q 为“摇滚裤子”，category 为 bottoms，styleTags 为字符串“摇滚”，requirements 为以下 JSON 的字符串形式：
+
+```json
+{"q":"摇滚裤子","intent":"search","category":"bottoms","styleTags":["摇滚"],"budgetCents":50000,"budgetScope":"total","includeCurrentProduct":true,"otherRequirements":["不要鞋"],"missingInformation":[]}
+```
+
+本次反馈说明 q 与排除条件已拆开，预算仍保留 50000 分、total 与包含当前商品，字段结构符合解析约定。尚无此次完整输入和 HTTP 日志；若沿用“买这件 T 恤，再配一条摇滚风裤子”原题，intent=search 不符合 outfit 预期；若实际仅输入独立找裤子，则 search 可能正确，不能离开输入一概改成 outfit。
+
+§12.1 的第 3 条已补清 search/outfit 边界，未修改解析代码：解析器校验字段合法性，不应靠硬编码把所有 search 改成 outfit。下一步用明确的完整原题单节点复验，并以“找一条摇滚风裤子，单条预算 500 元，不要鞋”作为 search 对照；对照测试应为 budgetScope=item、includeCurrentProduct=null。此处是节点排错用例，不改三条已确认的搭配验收标准。多轮保持、HTTP 映射、标签与预算执行仍未验收，暂不发布中间配置。
+
+### 12.8 两种提取用例通过，开始接查询字段（2026-11-10）
+
+用户确认两例通过并补充实际 requirements 文本，解析后如下。保留为本次单节点证据，不扩展成稳定性或多轮通过结论。
+
+搭配输入：
+
+```json
+{"q":"摇滚风裤子","intent":"outfit","category":"bottoms","styleTags":["摇滚风"],"budgetCents":50000,"budgetScope":"total","includeCurrentProduct":true,"otherRequirements":["不要鞋","搭配当前滚石T恤"],"missingInformation":[]}
+```
+
+独立搜索输入：
+
+```json
+{"q":"摇滚风裤子","intent":"search","category":"bottoms","styleTags":["摇滚风"],"budgetCents":50000,"budgetScope":"item","includeCurrentProduct":null,"otherRequirements":["不要鞋"],"missingInformation":[]}
+```
+
+接线步骤（用户在 Dify UI 操作，尚未确认完成）：
+
+1. 商品分支改为「参数提取 → 解析需求 → HTTP 请求 → 回答」，移除原先从参数提取直接到 HTTP 的连接，其他分支保持现状。解析节点失败不设置默认空值继续执行。
+2. HTTP 保留原 URL 与鉴权，修改 Params 的 q 引用为「解析需求.q」，新增 category 引用「解析需求.category」、styleTags 引用「解析需求.styleTags」，保留 limit=5，contextProductId 使用「用户输入.product_id」。值通过变量选择器插入，不手打成变量名字符串；不把本题值写死。
+3. 回答节点 USER 原有用户问题、HTTP body 和当前商品资料引用保留，追加“已提取的顾客需求”及「解析需求.requirements」变量。该 JSON 是需求信息，不是商品事实或已执行的筛选结果，不用于生成价格、库存或虚构商品 ID。
+4. 当前 API 不读取 requirements 或显式 intent，故不新增这些同名 HTTP 参数；也不把 budgetCents=50000 直接映射成 maxPriceCents。总预算仍待后端处理，不把本步接线当成预算已生效。
+5. 用现有这条输入在草稿中核对 HTTP 的实际查询参数与返回 body；不需要再次提供鉴权 Header。该题 q 为摇滚风裤子、category 为 bottoms、styleTags 为摇滚风，不应包含 JSON 大括号或“不要鞋”。
+
+结果解释：普通搜索会按 category 和 styleTags 过滤，当前 styleTags 是原文精确匹配；本地 seed-data 与商品补全记录没有三件摇滚样例，不能用这些文件断言当前数据库的全部内容。若返回空数组，先区分数据缺失、标签不一致与真实无匹配；不能作为全店无货或 S-E02 通过证据。现有相似/搭配/肤色快捷分支仍可能绕过上述过滤，当前接口也没有消费提取出的 intent；因此本步只验证指定输入的接线，不声称所有分支已满足约束。后续需配套后端过滤/预算、标签与样例数据，再运行三条集成用例；暂不发布中间配置。
+
+### 12.9 空结果的实际数据核验（2026-11-10）
+
+用户反馈 HTTP `status_code=200`、`body={"products":[]}`，尚未提供这次实际请求参数，不能仅凭 200 判定 Dify 映射全部正确。
+
+在当前项目配置指向的数据库中通过只读事务查询商品：共 13 件，12 件 ON_SALE；逐件检查名称、slug、状态与标签，没有 S01 滚石 T 恤、S02 基础垂感休闲西裤、S03 刷蜡涂层紧身裤，也没有“摇滚”或“摇滚风”的 styleTags。现有黑色高腰阔腿裤为另一件演示商品（¥359，极简/利落/显瘦），不能冒充用户的 ¥368 样例。
+
+使用本地工具凭证直接 GET 已运行的 `http://localhost:3000/api/assistant/products`，未启动服务、未调用模型、未写数据库；所有请求 category=bottoms、limit=5，不带当前商品 ID 或预算：
+
+| q | styleTags | HTTP | 实际结果 |
+| --- | --- | --- | --- |
+| 摇滚风裤子 | 摇滚风 | 200 | products=[] |
+| 摇滚裤子 | 摇滚 | 200 | products=[] |
+| 极简裤子 | 极简 | 200 | 黑色高腰阔腿裤，black-wide-leg-pants，priceCents=35900 |
+
+结论：当前数据中缺少样例及相应标签，单纯把“摇滚风”改为“摇滚”也不会产生候选；接口能找到现有极简下装。这是数据与工具层证据，不替代 Dify 这次真实参数、分类路由或模型回答验收。
+
+下一步让用户在 Dify 草稿中输入“找一条极简裤子，不要鞋”，检查 HTTP body 是否包含上述现有商品。预期参数为 q=极简裤子、category=bottoms、styleTags=极简；若仍为空，查看实际字段和变量映射，不能再用修改商品数据掩盖接线问题。这个正向对照只验证现有查询接线，不证明预算或三件样例搭配已通过。
+
+后续用户提供该对照结果仍为 `products=[]`。再次直接调用当前本地接口，固定 q=极简裤子、category=bottoms、limit=5：styleTags=极简返回黑色高腰阔腿裤，styleTags=极简风为空，styleTags 为数组文本 `["极简"]` 也为空。三次均 HTTP 200。这些是可复现的标签输入差异，不是 Dify 实际参数证据。下一步读取同一次运行的 HTTP URL/查询参数（不含鉴权 Header），必要时连同代码执行输出，检查实际值及变量引用；不直接猜测根因、不将本题硬编码到配置中。
+
+### 12.10 q 映射问题确认与正向对照通过（2026-11-10）
+
+用户随后提供实际请求：q 的 URL 解码结果仍为整段 JSON，category=bottoms、styleTags=极简，contextProductId 误填商品名“滚石T恤”。未保存请求 Header 或凭证。已指导 q 使用「代码执行.q」，当前商品 ID 只能用数据库 ID，无当前商品时留空；建议新会话排除旧的预算/主体条件。
+
+用户确认修改 q 引用，并提供成功回答：黑色高腰阔腿裤、极简/利落/显瘦、黑色、均码、¥359、通勤/日常，不附带鞋履；商品标记为 cmvy2n4w9000oa4tqhpng6ynm。本次确认实际商品查询与回答的正向对照通过，不外推为预算或三件样例通过。
+
+下一块使用同一 Chatflow 草稿验证三件已确认样例。内部数据与仅非 production 可用的测试接口已准备，8 项本地规则/路由测试、类型检查、lint 与生产构建通过；原商品查询接口未改。现有服务未加载新路由，按用户约定等待启动开发服务的确认，随后依 `m5-sample-tool-setup.md` 操作。
+
+### 12.11 顾客回复表达与本次收尾（2026-11-10）
+
+用户指出成功推荐后的“只推荐这条裤子，不附带鞋履”不应作为顾客话术。建议在回答节点补充以下规则；尚未收到用户确认已修改，不记为已生效或已验收：
+
+```text
+回复应自然、面向顾客。成功推荐时，直接介绍商品及适合顾客的理由，不逐条复述自己遵守了哪些筛选条件，例如“只推荐这条裤子，不附带鞋履”。
+只有条件冲突、没有匹配或需要顾客确认时，才说明相关限制。
+```
+
+用户随后要求 commit 全部目前工作并休息；本次仅做本地提交，不启动开发服务、不发布 Dify、不 push。Dify 配置由用户 UI 操作，未导出 DSL；当前文档是修改和验证记录，不能作为完整配置快照。

@@ -1,0 +1,69 @@
+{
+  "version": "rock-outfit-v1",
+  "source": "memory-bank/product-samples.md；价格与搭配关系由用户确认",
+  "products": [
+    {
+      "sampleId": "S01",
+      "name": "滚石乐队巡演图案 T 恤",
+      "category": "tops",
+      "priceCents": 18800,
+      "styleTags": ["复古", "摇滚", "休闲"],
+      "description": "深色圆领短袖，红白舌头图案与字母印花。店主判断为普适款，可通勤但不算很基础。",
+      "sizeLabel": "M",
+      "lengthCm": 61,
+      "reportedChestCm": 94,
+      "chestMeasurementBasis": null,
+      "material": null,
+      "stock": null,
+      "returnPolicy": null,
+      "fitVerified": false,
+      "pairingNotes": []
+    },
+    {
+      "sampleId": "S02",
+      "name": "基础垂感休闲西裤",
+      "category": "bottoms",
+      "priceCents": 36800,
+      "styleTags": ["基础", "休闲"],
+      "description": "基础、百搭、垂感轻盈的休闲西裤，有多个尺码，具体尺寸未知。",
+      "sizeLabel": null,
+      "lengthCm": null,
+      "reportedChestCm": null,
+      "chestMeasurementBasis": null,
+      "material": null,
+      "stock": null,
+      "returnPolicy": null,
+      "fitVerified": false,
+      "pairingNotes": ["不适合搭配摇滚风或鲜艳亮色的单品；百搭不能覆盖这些限制。"]
+    },
+    {
+      "sampleId": "S03",
+      "name": "刷蜡涂层紧身裤",
+      "category": "bottoms",
+      "priceCents": 36800,
+      "styleTags": ["摇滚", "哥特", "复古", "机车"],
+      "description": "刷蜡涂层、紧身，风格明确，不属于百搭款。",
+      "sizeLabel": null,
+      "lengthCm": null,
+      "reportedChestCm": null,
+      "chestMeasurementBasis": null,
+      "material": null,
+      "stock": null,
+      "returnPolicy": null,
+      "fitVerified": false,
+      "pairingNotes": ["不适合轻松休闲风上衣（如该风格的衬衫）；不扩大为所有衬衫都不适配，也不因 S01 有休闲标签否定明确适配关系。"]
+    }
+  ],
+  "pairings": [
+    {
+      "sampleIds": ["S01", "S02"],
+      "compatible": false,
+      "reason": "店主明确指定不适配：这条休闲西裤不适合 S01 的摇滚风，百搭或同色不能覆盖此限制。"
+    },
+    {
+      "sampleIds": ["S01", "S03"],
+      "compatible": true,
+      "reason": "店主确认适配：滚石图案 T 恤的摇滚风与刷蜡涂层裤的摇滚、复古特征相符。"
+    }
+  ]
+}

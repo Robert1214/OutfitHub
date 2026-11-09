@@ -1,0 +1,50 @@
+{
+  "type": "object",
+  "properties": {
+    "q": {
+      "type": "string",
+      "description": "用于查找候选商品的简短正向关键词，保留具体商品类型，如摇滚裤子；不拼入价格或JSON。"
+    },
+    "intent": {
+      "type": "string",
+      "enum": ["search", "outfit", "similar", "product_info", "color_advice", "unknown"]
+    },
+    "category": {
+      "type": "string",
+      "enum": ["tops", "bottoms", "dresses", "outerwear", "accessories", "shoes", ""]
+    },
+    "styleTags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "顾客明确要求的风格，不把当前商品的全部标签当作顾客要求。"
+    },
+    "budgetCents": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "顾客明确预算的整数分值；未提供为null，不计算剩余预算。"
+    },
+    "budgetScope": {
+      "type": "string",
+      "enum": ["item", "total", "unknown", "none"]
+    },
+    "includeCurrentProduct": {
+      "type": ["boolean", "null"],
+      "description": "预算是否包含当前作为搭配主体的商品；顾客明确一起买为true，已拥有且只买搭配品为false，未知或不适用为null。"
+    },
+    "otherRequirements": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "其余明确条件，如不要鞋、不接受花哨、只从指定样例选择；不得遗漏否定条件。"
+    },
+    "missingInformation": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "完成本次需求解释所必需但仍不明确的信息；用户未给预算本身不构成缺失。"
+    }
+  },
+  "required": [
+    "q", "intent", "category", "styleTags", "budgetCents", "budgetScope",
+    "includeCurrentProduct", "otherRequirements", "missingInformation"
+  ],
+  "additionalProperties": false
+}

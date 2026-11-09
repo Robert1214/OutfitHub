@@ -1,7 +1,14 @@
 # 实施计划 — outfitexpert-shop
 
 > **依据**：`memory-bank/prd.md` v0.8
-> **状态**：M5 评测集/契约冻结 v0、本地 Dify 连通、商品数据与商品工具已完成（2026-11-03）；下一步 Dify Chatflow baseline（待用户配置应用/API Key），M4 试穿后置
+> **本次收尾（2026-11-10）**：用户要求将目前全部工作 commit 后休息，仅本地提交、不 push。下次从三件样例工具联调继续；3001 开发服务尚未获得启动确认，不自动启动。用户指出“只推荐这条裤子，不附带鞋履”属于面向顾客的冗余表达，已起草自然回复规则，尚未确认写入 Dify。Dify 配置未导出 DSL，本仓库保存配置步骤、已知修改和测试记录，不能将 Git 提交视为 Dify 配置备份。
+> **当前工作（2026-11-10）**：用户修正 HTTP q 引用为「代码执行.q」后，极简裤子查询返回黑色高腰阔腿裤 ¥359，正向接线对照通过。下一块为三件样例的预算/搭配/多轮验证：已准备 `data/assistant-samples.json`、开发环境 `/api/assistant/sample-products` 及配置说明 `m5-sample-tool-setup.md`；8 项本地测试、tsc、eslint、build 全部通过。现有 3000 服务未加载新路由（HTML 404），未启动或重启服务，待按用户原约定确认启动独立开发端口 3001。正式商品库与查询接口未改，三条 Dify 集成用例尚未运行；M5 为主案例、M4 后置、不发布测试配置。下列按日期记录保留历史。
+> **最新进展（2026-11-09，用户确认）**：用户已在现有商品「回答」节点完成本轮提示词局部修改，涵盖按指定品类推荐、组合总价、无匹配时协商条件与多轮要求保持；原排除重复推荐规则保留并补充当前商品计价说明。用户截图确认回答节点已引用用户问题与 HTTP body、记忆已开启。尚未确认发布，未运行验收；肤色规则本轮未变更。下一步检查「参数提取」节点提示词和记忆设置，再核对 HTTP 查询参数，确认完整需求能传到商品工具。
+> **参数提取节点核对（2026-11-09，用户截图）**：模型为 `deepseek-v4-flash`；SYSTEM 要求只输出一个简短检索关键词、不输出 JSON；USER 引用当前 query，未显示当前商品资料引用；记忆、结构化输出、推理标签分离均关闭。该节点尚未表达独立的品类、风格和预算字段，多轮需求保留存在缺口；这不是一次运行失败的实测结论。已核对接口：普通搜索用显式参数过滤单件价格，不能把自然语言总预算直接等同于该价格字段，带当前商品的搭配分支另有过滤缺口。下一步指导用户开启该节点记忆，并取得现有 HTTP 查询参数映射，再给与接口匹配的局部修改；尚未确认开关修改、发布或测试结果。
+> **HTTP 核对与下一步（2026-11-09）**：用户提供当前 URL 和 Params，确认仅有 q（参数提取.text）、limit=5、contextProductId（Start 商品变量，截图名称截断）。已准备 `m5-dify-chatflow.md` §12 与 `m5-query-extraction.schema.json`，用于在现有提取节点先验证完整需求输出；属于草稿，未修改接口代码或 Dify 配置。节点输出改为结构化后，必须配套改 HTTP 映射及接口预算/搭配过滤，不能把 JSON 直接传给 q，不发布中间配置。三件样例未入库、三个集成用例仍未执行。
+> **模型能力纠正（2026-11-09，用户反馈）**：当前接入模型不支持结构化输出，撤回开启该开关及上传 Schema 的步骤。§12 已改为普通 text 生成 JSON 的完整提示词草稿，后续拟以代码解析/校验后再映射 HTTP；未配置代码节点、未修改接口。旧“不要 JSON”要求随原 SYSTEM 整体替换，不能与新规则并存。格式正确与需求理解正确需要分别验证。
+> **历史运行阻塞（2026-11-09，用户截图）**：分类器曾返回 HTTP 402 `Insufficient Balance`；后续用户截图已有最终回复，本次已不受该错误阻断，具体凭证处理方式未知，不能推断所有节点额度。新回复拒绝推荐查到的鞋、说明缺少 T 恤资料，搭配任务尚未完成。原文及假设见 `m5-dify-chatflow.md` §12.4；下一步读取此次参数提取的 text，再核对 HTTP 实际 q/body，检查是否把 JSON 整体作为检索词。三件样例未接入商品工具，不能将本次预览当作正式 S-E02 验收。
+> **提取输出已收到（2026-11-09）**：用户提供的 JSON 已提取搭配、下装、摇滚风、500 元总预算、包含当前商品及不要鞋，但漏了必需的 q。§12.5 保存原始 text，§12.6 提供解析校验代码草稿；未保存推理内容，未修改 Dify。下一步补齐 q 后单节点复验，再接解析节点及接口；“摇滚风”与库内标签的映射也需核对。不能将整段 JSON 传给 q，三条集成用例仍未验收。
 > **规则**：每个里程碑结束必须能运行、能演示、能提交；未通过验收不得进入下一阶段。
 
 ---
@@ -381,6 +388,10 @@ outfitexpert-shop/
 > **定位**：AI PM 面试主案例。目标不是“接一个聊天框”，而是展示意图路由、RAG/工具分工、评测、护栏和迭代闭环。
 > **已确认（2026-11-03）**：本地 Dify；v1 只读工具；Router + 复杂分支 Agent；评测集由我起草、用户确认标签。
 
+> **现状核对（2026-11-09）**：用户截图确认现有分类、参数提取、HTTP 商品查询、政策知识检索、回答及尺码/转人工出口，Start 已有 `product_context`、`size_advice`、`product_id`。代码已实现商品接口、聊天代理、上下文与会话 ID 传递、尺码计算；已有 49 条历史评测结果。截图不能证明节点内部 Prompt、记忆和当前发布配置正确，代码存在也不等于本轮验收通过。下列大项未勾选包含未完成的增强要求，不代表基础功能尚未建设。
+
+> **本轮静态发现**：`src/app/api/assistant/products/route.ts` 的 `findOutfitProducts(targetId, limit)` 使用互补品类与标签评分，当前商品搭配分支未把预算、指定品类、指定风格过滤条件传入该函数；也没有组合总价或样例搭配禁配规则的校验。旧 Prompt 模板还含优先推荐鞋/配饰的规则。下一步核对现有商品回答节点怎样使用候选与对话历史，再依据用户已确认的三条用例提出局部修复；本轮未修改运行行为、未调用被测模型。
+
 ### 目标
 
 - 用户能用自然语言完成：找商品、问搭配、问尺码、问政策、转人工。
@@ -434,7 +445,7 @@ outfitexpert-shop/
   - Dify 容器访问 `http://host.docker.internal:3000` 已通。
   - 本地 Dify SSRF 白名单已加 `host.docker.internal` 并重启 `ssrf_proxy`；代理测试 200。
   - 配置说明：`memory-bank/m5-dify-setup.md`。
-  - Dify API Key 待用户在 Dify 应用创建后写入 `.env.local`。
+  - 已有应用接入与历史调用记录；不再要求创建应用或重新配置 Key，不在文档保存真实密钥。
 - [x] 12.2 商品查询工具 `/api/assistant/products`
   - 商品数据补全清单：`memory-bank/m5-product-data.md`（已确认 2026-11-03；13 件；新增 `returnPolicy` / `styleTags` / `occasionTags`）。
   - 支持 `q` / `category` / `color` / `refType` / `styleTags` / `occasionTags` / `minPriceCents` / `maxPriceCents` / `limit` / `ids` / `similarTo`。
@@ -443,7 +454,7 @@ outfitexpert-shop/
   - `ASSISTANT_TOOL_TOKEN` 校验 + 限流；Dify 配置说明。
   - 实测：无 token 401；带 token 200；`q` / `similarTo` / `ids` / `returnPolicy` 正常；Dify 容器可访问。
 - [ ] 12.3 Dify Chatflow baseline
-  - 搭建稿：`memory-bank/m5-dify-chatflow.md`（当前最小测试流 → 商品分支 baseline）。
+  - 历史搭建与增量配置记录：`memory-bank/m5-dify-chatflow.md`；现有分支已由用户截图确认，后续核对配置和验收缺口。
   - 意图路由 JSON + 置信度/槽位检查 + 一次澄清。
   - 知识库检索节点（topK、阈值、引用输出）。
   - 商品 HTTP 工具、尺码工具、政策分支、转人工分支。
@@ -463,7 +474,7 @@ outfitexpert-shop/
 - [ ] 12.6 评测脚本与 baseline
   - 评测脚本已建立（2026-11-03）：`scripts/eval-assistant.mjs`，可读 `m5-eval.csv`、跑 `/api/chat`、输出商品命中/无效 ID/延迟；`--limit=2` 冒烟通过。
   - 商品上下文 Next 侧已完成（2026-11-03）：商品页「问导购」→ `/assistant?product=slug` → `/api/chat` 将 `product_context` 随 Dify 请求发送；评测脚本按 `context_product` 发送 `productSlug`。
-  - 已知缺口：Dify Start 节点尚未声明 `product_context` 输入变量，当前回答仍忽略上下文；需在 Dify 加可选文本输入并在回答 Prompt 引用后，才能跑依赖“这件”的用例。
+  - 2026-11-09 截图确认 Start 已声明 `product_context`；此前“尚未声明”的阻塞已过期。当前 Prompt 引用、字段设置、发布版本与多轮条件保持需结合现有配置和运行记录核验，不重复添加变量。
   - blocking 模式跑评测集，输出 CSV：意图准确率、任务成功率、商品相关性、无效 ID 率、引用准确率、澄清率、转人工率、P50/P95 延迟、token/成本、幻觉率。
   - 人工抽检 + 可选的 LLM-as-judge；保留 baseline 结果。
 - [ ] 12.7 Agent 分支与对比
@@ -622,10 +633,13 @@ outfitexpert-shop/
 - [x] 2026-11-03 `assistant_logs` 实测写入成功（商品 ID、有效/无效、延迟、token）
 - [x] 2026-11-03 评测脚本 `scripts/eval-assistant.mjs` 冒烟通过；已支持按 `context_product` 发送 `productSlug`
 - [x] 2026-11-03 商品上下文 Next 侧完成：商品页「问导购」→ `/assistant?product=slug` → `/api/chat` 发送 `product_context` + 评测脚本注入
-- [ ] Dify Start 节点添加 `product_context` 输入变量并在回答 Prompt 引用（当前阻塞上下文验收）
-- [ ] M5 全量 baseline（下一步）
-- [ ] M5 意图分类与分支（避免所有问题都查商品）
-- [ ] M5 assistant_logs / 评测脚本
-- [ ] M5 实现
+- [x] Dify Start 已有 `product_context` / `size_advice` / `product_id`（2026-11-09 用户截图）；当前节点内部引用及发布配置仍需核验
+- [x] M5 已有 49 条历史评测结果；历史商品命中率不等同于任务成功率
+- [x] M5 分类与商品/政策/尺码/转人工分支已经搭建（2026-11-09 用户截图）
+- [x] M5 assistant_logs / 评测脚本基础实现存在；日志和判分完整性仍待补强
+- [x] 三件商品样例及三条预算/多轮验收标准已由用户确认
+- [ ] 在现有 Chatflow 上核对配置，确定样例接入方式并执行三条用例；不得将样例编号当作真实数据库商品 ID
+- [ ] 同版本完整 baseline 与行为判分复验；保留原始失败和重测，不把重测修正值当作原始全量结果
+- [ ] M5 剩余增强与验收（Agent、反馈、handoff 等按用户决定推进）
 - [ ] M4 试穿（M5 后）
 - [ ] GitHub 远程仓库（本地 Git 已初始化；远程连接暂缓）
