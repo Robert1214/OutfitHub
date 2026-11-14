@@ -64,9 +64,18 @@
 
 前端收到 `conversation_expired` 后丢弃旧 conversationId 重新开始。**逻辑存在。**
 
-### 实测状态
+### 实测状态（2026-11-15 补测）
 
-- 未构造「过期 conversationId」的真实请求。Dify 的会话不存在时会返回 404 或 `Conversation Not Exists`，但本地 Dify 删除会话成本较高，本轮未做。
+用伪造的 conversationId 直接请求 `/api/chat`：
+
+```
+POST {"query":"hi","anonId":"eval-exp-probe","conversationId":"00000000-0000-4000-8000-000000000000"}
+→ {"error":"导购助手暂时不可用，请稍后重试","code":"conversation_expired"}
+```
+
+- `code=conversation_expired` **正确返回**，前端可以据此丢弃旧会话。
+- 响应是**非流式 JSON**，而不是 `{type:"error"}` 事件；前端有对应分支，但需在浏览器里确认 UI 不会空白。
+- 结论：**服务端行为正确，UI 表现待浏览器确认**。
 - 与 D1 那次事故的区别：D1 是**每个请求换了 Dify user**，导致旧 conversationId 归属新 user 而 404。该根因已修（anonId 固定），本次无需重查。
 
 ### 建议
@@ -80,4 +89,4 @@
 | PM-011 固定题 | 待建 | 题库里做成「跑 3 次」的稳定性题 |
 | N-01 条件清单外泄 | 已定位 | 写进题库，稳定复现后改表达段 |
 | N-02 「不是整套搭配」 | 已定位 | 同上 |
-| 会话过期 | 已核对代码 | 用伪造 conversationId 做脚本测试 |
+| 会话过期 | 服务端已实测正确 | 浏览器确认 UI 恢复 |
