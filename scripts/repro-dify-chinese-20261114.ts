@@ -1,3 +1,4 @@
+export {};
 // D1 后续：conversationId 404 与语义 400 的复现
 // 用法：npx tsx --env-file=.env.local scripts/repro-dify-chinese-20261114.ts
 const base = (process.env.DIFY_API_BASE_URL ?? "").replace(/\/+$/, "");

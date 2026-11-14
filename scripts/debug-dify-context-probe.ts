@@ -1,3 +1,4 @@
+export {};
 // 受控实验：直接调 Dify chat-messages（blocking），传带标记的 product_context，
 // 看回答能否复述资料内容。不打印密钥。
 const base = (process.env.DIFY_API_BASE_URL ?? "").replace(/\/+$/, "");

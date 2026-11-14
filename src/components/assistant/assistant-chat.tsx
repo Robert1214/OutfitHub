@@ -218,12 +218,17 @@ export function AssistantChat({
       if (!response.ok || !response.body) {
         const data = (await response.json().catch(() => ({}))) as {
           error?: string;
+          code?: string;
         };
+        if (data.code === "conversation_expired") setConversationId("");
         updateAssistant(assistantId, (message) => ({
           ...message,
           pending: false,
           error: true,
-          text: data.error ?? "导购助手暂时不可用，请稍后重试。",
+          text:
+            data.code === "conversation_expired"
+              ? "对话已过期，我会重新开始一轮对话。请把问题再发一次。"
+              : (data.error ?? "导购助手暂时不可用，请稍后重试。"),
         }));
         return;
       }
@@ -251,6 +256,7 @@ export function AssistantChat({
             text?: string;
             message?: string;
             conversationId?: string;
+            code?: string;
           };
           try {
             event = JSON.parse(line);
@@ -269,6 +275,12 @@ export function AssistantChat({
             streamFinished = true;
           } else if (event.type === "error") {
             streamError = event.message ?? "回答中断了，请稍后重试。";
+            if (event.code === "conversation_expired") {
+              // 会话已失效：下一条消息自动开新会话。
+              setConversationId("");
+              streamError =
+                "对话已过期，我会重新开始一轮对话。请把问题再发一次。";
+            }
             streamFinished = true;
           }
         }

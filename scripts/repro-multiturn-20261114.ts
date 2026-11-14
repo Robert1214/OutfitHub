@@ -1,3 +1,4 @@
+export {};
 // 续轮（带 conversationId）复现：PM-012
 // 用法：npx tsx --env-file=.env.local scripts/repro-multiturn-20261114.ts
 const BASE = "http://localhost:3000/api/chat";

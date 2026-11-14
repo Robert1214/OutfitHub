@@ -1,3 +1,4 @@
+export {};
 // 2026-11-14 回归抽查：提取温度 0.2 + 预算包含关系规则加固后
 // 用法：npx tsx scripts/regression-20261114.ts
 const BASE = "http://localhost:3000/api/chat";

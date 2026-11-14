@@ -568,8 +568,20 @@ function buildWhere(params: {
   return where;
 }
 
-export async function GET(request: Request) {
-  const expectedToken = process.env.ASSISTANT_TOOL_TOKEN?.trim();
+/**
+ * 搭配分支的金额口径：单件预算且不计上衣时，回答节点必须只报本次新买下装的金额。
+ * 工具已经算好 reportedPriceCents，但模型仍可能照抄 outfits 里的整套合计，
+ * 因此在响应体顶层再给一个显式、不可误解的「本次应报金额」与一句口径说明。
+ */
+function annotateOutfitPurchaseBasis<T extends { purchaseBasis?: string; reportedPriceCents?: number | null }>(result: T) {
+  if (result.purchaseBasis !== "newItemsOnly" || result.reportedPriceCents == null) return result;
+  return {
+    ...result,
+    priceBasisNote: `本次只购买下装：所有金额以本次应报金额${result.reportedPriceCents}分为准，不得把搭配主体（已有上衣）的金额计入本次总价或合计。`,
+  };
+}
+
+export async function GET(request: Request) {  const expectedToken = process.env.ASSISTANT_TOOL_TOKEN?.trim();
   if (!expectedToken) {
     return NextResponse.json(
       { error: "助手商品工具未配置" },
@@ -613,7 +625,10 @@ export async function GET(request: Request) {
           // 比较模式只返回店主审核过的固定比较组，不查数据库、不生成商品ID。
           ? ownerReviewedComparisonCatalog
           : await queryCatalogProducts(requirements.data, prisma.product, catalogQuery.data.limit);
-      return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
+      const body = result.scope === "catalog_anchored_outfit"
+        ? annotateOutfitPurchaseBasis(result)
+        : result;
+      return NextResponse.json(body, { headers: { "Cache-Control": "no-store" } });
     } catch {
       console.error("完整需求商品查询失败");
       return NextResponse.json({ error: "商品查询失败，请稍后重试" }, { status: 500 });

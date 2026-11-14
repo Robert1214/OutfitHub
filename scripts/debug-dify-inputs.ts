@@ -1,3 +1,4 @@
+export {};
 // 诊断脚本：查询 Dify 收到过的 inputs，确认 product_context 是否到达。
 // 不打印任何密钥；只打印业务数据。
 const base = (process.env.DIFY_API_BASE_URL ?? "").replace(/\/+$/, "");

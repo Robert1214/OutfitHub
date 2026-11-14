@@ -1,3 +1,4 @@
+export {};
 async function runOnce(n: number) {
   const res = await fetch("http://localhost:3000/api/chat", {
     method: "POST",

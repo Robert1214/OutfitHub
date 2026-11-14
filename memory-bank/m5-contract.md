@@ -1,6 +1,7 @@
 # M5 导购助手契约 v0
 
 > 状态：v0 评审稿，随 `memory-bank/m5-eval.csv` 一起冻结。
+> 2026-11-14搭配金额口径（PM-013）：scope=catalog_anchored_outfit 新增 `purchaseBasis`（`both` / `newItemsOnly`）、`reportedPriceCents`（本次应报金额，分；matched 与 over_budget 均返回），并在 newItemsOnly 时追加 `priceBasisNote`。回答节点必须按 reportedPriceCents 说明金额，不得把搭配主体价格计入本次合计。注解在 route.ts 统一处理，Dify HTTP 参数不变。
 > 2026-11-11指定主体搭配扩展：同一requirements分支新增scope=catalog_anchored_outfit，只有intent=outfit、明确anchorProductId与实际contextProductId一致、已选上衣找单类下装时核对。具体店主规则与实时商品数据决定结果，返回products仅候选下装，outfits含单个组合价格及余额，over_budget金额见budgetAssessment且不返回卡片。未知关系needs_verification、主体不可购买anchor_unavailable，不能泛称全店无搭配。原单品行为保留，详见m5-catalog-outfit-setup.md；本地31项通过，Dify新增配置待验。下方2026-11-11单品扩展记录为此前阶段。
 > 2026-11-11兼容扩展：`/api/assistant/products`新增独立requirements分支，使用现有提取的search/outfit等枚举（与下方历史路由枚举不同）。该分支返回scope=catalog_single_item及status、requirements、products、clarification、unresolvedRequirements、budgetAssessment；仅支持本阶段独立单品，不降级旧快捷分支。只接受requirements、limit(1–4)、contextProductId，拒绝旧q/anchorSampleId等混用。未带requirements的旧协议继续适用。完整操作及状态说明见m5-catalog-single-item-setup.md，Dify集成仍待验证。
 > 2026-11-09 补充：用户已确认无完整搭配匹配时采用先协商条件的 A 方案（§1）；对应实现与多轮评测尚未验收，不代表历史 CSV 已覆盖该规则。

@@ -103,7 +103,8 @@ type DifyEvent = {
   answer?: string;
   conversation_id?: string;
   message?: string;
-  data?: { error?: string; status?: string };
+  data?: { error?: string; status?: string | number };
+  status?: string | number;
   usage?: DifyUsage;
   metadata?: { usage?: DifyUsage; model_name?: string };
 };
@@ -322,7 +323,11 @@ export async function POST(request: Request) {
       promptVersion: process.env.ASSISTANT_PROMPT_VERSION ?? "dify-v0",
     });
     return NextResponse.json(
-      { error: "导购助手暂时不可用，请稍后重试" },
+      {
+        error: "导购助手暂时不可用，请稍后重试",
+        // 会话不存在（过期/换了用户）：前端应丢弃旧 conversationId 重新开始。
+        ...(difyResponse.status === 404 ? { code: "conversation_expired" } : {}),
+      },
       { status: 502 },
     );
   }
@@ -414,6 +419,9 @@ export async function POST(request: Request) {
               send({
                 type: "error",
                 message: streamError,
+                // 会话不存在（过期/换了用户）：前端应丢弃旧 conversationId 重新开始。
+                ...(event.status === 404 || /Conversation Not Exists/i.test(streamError)
+                  ? { code: "conversation_expired" } : {}),
               });
               finished = true;
               break;

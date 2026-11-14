@@ -28,6 +28,10 @@ export async function queryAnchoredOutfits(
       minimumPriceCents: number; budgetCents: number; overByCents: number;
       includesAnchor: boolean;
     } | null,
+    // 本次购买口径：只在某一方用于说明，不重复计价。
+    purchaseBasis: "both" as "both" | "newItemsOnly",
+    // 本次应向顾客报的金额（分）：按预算口径算好，回答节点不得自行改用整套合计。
+    reportedPriceCents: null as number | null,
     limitations: ["仅核对店主已确认的具体组合，不能由此判断全店没有其他搭配。", "未核对顾客合身度。"],
   };
   if (requirements.intent !== "outfit" || (requirements.requestedCategories?.length ?? 0) > 1 ||
@@ -105,6 +109,7 @@ export async function queryAnchoredOutfits(
     select: catalogProductSelect, orderBy: [{ priceCents: "asc" }, { id: "asc" }], take: rules.length,
   });
   const includesAnchor = requirements.includeCurrentProduct === true;
+  const purchaseBasis = includesAnchor ? "both" : "newItemsOnly";
   const evaluated = candidates.map((product) => {
     const rule = rules.find((rule) => rule.candidateSlug === product.slug)!;
     const outfitTotalCents = anchor.priceCents + product.priceCents;
@@ -123,12 +128,16 @@ export async function queryAnchoredOutfits(
     .slice(0, Math.max(1, Math.min(4, Math.trunc(requestedLimit) || 4)));
   if (affordable.length) {
     return { ...base, status: "matched_known_constraints", products: affordable.map(({ product }) => toCatalogProduct(product)),
-      outfits: affordable.map(({ outfit }) => outfit),
-      nextAction: "以currentProduct说明主体，从products推荐下装；按对应outfit解释价格，候选彼此是备选，卡片只用本轮products ID。" };
+      outfits: affordable.map(({ outfit }) => outfit), purchaseBasis,
+      reportedPriceCents: affordable[0].outfit.assessedPriceCents,
+      nextAction: purchaseBasis === "both"
+        ? "以currentProduct说明主体，从products推荐下装；按outfits的outfitTotalCents说明两件合计，reportedPriceCents即本次应报金额；候选彼此是备选，卡片只用本轮products ID。"
+        : "以currentProduct说明搭配主体（顾客已拥有或不计入本次预算），只按reportedPriceCents说明本次购买下装的金额，不得把上衣价格计入本次金额或合计；候选彼此是备选，卡片只用本轮products ID。" };
   }
   if (evaluated.length && requirements.budgetCents !== null) {
     const cheapest = evaluated[0].outfit;
-    return { ...base, status: "over_budget", budgetAssessment: {
+    return { ...base, status: "over_budget", purchaseBasis,
+      reportedPriceCents: cheapest.assessedPriceCents, budgetAssessment: {
       anchorPriceCents: anchor.priceCents, minimumCandidatePriceCents: cheapest.candidatePriceCents,
       minimumPriceCents: cheapest.assessedPriceCents, budgetCents: requirements.budgetCents,
       overByCents: cheapest.assessedPriceCents - requirements.budgetCents, includesAnchor,

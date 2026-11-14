@@ -19,8 +19,8 @@
 | PM-010 | 已有上衣被重复放入附加条件，有解仍不推荐 | 局部对照及owned-v2完整回归通过，原失败保留；未外推为所有表达稳定 | [首轮评估报告](m5-current-scope-report-20261112.md)、[v2完整回归](m5-current-scope-report-20261112-v2.md) |
 | PM-011 | 防水要求被正确保留，回复却将裤子称为裙装 | 条件保护通过；品类称呼冲突已记录，同轮完整品类/工具输入未取得，原因待查 | [防水对照](m5-owned-anchor-retest-20261112-02.md) |
 | PM-012 | 回答追问后，用户只补答预算，系统却把续轮当新问题再问品类 | **已排除**：固定 anonId 真实三轮续轮正确承接。原「失败」是测试脚本每轮换新 anonId → 旧会话不属于新 user → 404 | [回归记录](m5-regression-20261114.md) |
-| PM-013 | 单件预算口径下，工具返回仍只表达整套合计，回答可能报818元 | 已定位代码：assessedPriceCents 仅区分是否计上衣，未向回答暴露"本次只买下装"的金额 | [回归记录](m5-regression-20261114.md) |
-| PM-014 | 续轮时 conversationId 与 Dify user 不匹配，用户只看到"暂时不可用" | 已定位：route.ts:229-231 每轮随机 user；Dify 返回 404 Conversation Not Exists。真实浏览器持久化 anonId 不受影响；建议前端识别 404 自动重开会话 | [回归记录](m5-regression-20261114.md) |
+| PM-013 | 单件预算口径下，工具返回仍只表达整套合计，回答可能报818元 | 已修：purchaseBasis/reportedPriceCents/priceBasisNote，端到端 359 元通过；Dify 回答段待应用 | [修复记录](m5-fix-pm013-pm014-20261114.md) |
+| PM-014 | 续轮时 conversationId 与 Dify user 不匹配，用户只看到"暂时不可用" | 已修：Dify 404 返回 code=conversation_expired，前端清空会话并提示重新开始；测试须固定 anonId | [修复记录](m5-fix-pm013-pm014-20261114.md) |
 
 ## PM-001：为什么选对商品仍不能直接判通过
 
