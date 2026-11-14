@@ -149,6 +149,7 @@ export async function queryCatalogProducts(
   }
 
   const { styles, occasions } = splitStyleAndOccasion(requirements.styleTags);
+  const relevance = { category: { slug: requirements.category } };
   const where: Prisma.ProductWhereInput = {
     status: "ON_SALE", stock: { gt: 0 }, category: { slug: requirements.category },
     ...(styles.length ? { styleTags: { hasEvery: styles } } : {}),
@@ -158,9 +159,12 @@ export async function queryCatalogProducts(
   const limit = Math.max(1, Math.min(4, Math.trunc(requestedLimit) || 4));
   // Price ordering happens in the database BEFORE take. If the cheapest matching
   // item is over budget, no later item can be an affordable candidate.
-  const candidates = await reader.findMany({
-    where, select: catalogProductSelect, orderBy: [{ priceCents: "asc" }, { id: "asc" }], take: limit,
-  });
+  const orderBy: [{ priceCents: "asc" }, { id: "asc" }] = [{ priceCents: "asc" }, { id: "asc" }];
+  const candidates = await reader.findMany({ where, select: catalogProductSelect, orderBy, take: limit });
+  // D01-1: when nothing satisfies every condition, still fetch the in-stock items
+  // of the same category so the nearest alternatives can be shown, flagged as such.
+  const fallback = candidates.length ? []
+    : await reader.findMany({ where: { status: "ON_SALE", stock: { gt: 0 }, ...relevance }, select: catalogProductSelect, orderBy, take: limit });
   const checkedConstraints = ["在售且库存大于零", "品类", "正向关键词",
     ...(styles.length ? ["全部明确风格标签"] : []),
     ...(occasions.length ? [`适用场合：${occasions.join("、")}`] : []), "已识别的排除品类",
@@ -168,8 +172,13 @@ export async function queryCatalogProducts(
   const products = candidates.filter((p) => requirements.budgetCents === null || p.priceCents <= requirements.budgetCents)
     .map(toCatalogProduct);
   if (products.length) {
-    return { ...base, checkedConstraints, status: "matched_known_constraints", products,
-      nextAction: "从products中推荐单品，报价和商品ID取真实字段；仅声称已核对条件匹配，不把查询结果当作页面上下文。" };
+    // Give the model the remainder as data so it rewrites "还剩 XX 元" verbatim
+    // instead of re-deriving (and paraphrasing) the subtraction itself.
+    const budgetRemainderCents = requirements.budgetCents === null ? null : requirements.budgetCents - products[0].priceCents;
+    return { ...base, checkedConstraints, status: "matched_known_constraints", products, budgetRemainderCents,
+      nextAction: budgetRemainderCents === null
+        ? "从products中推荐单品，报价和商品ID取真实字段；仅声称已核对条件匹配，不把查询结果当作页面上下文。"
+        : "从products中推荐单品，报价和商品ID取真实字段，并按budgetRemainderCents用「预算还剩XX元」的句式说明剩余额度，不得改写为「还差」「还欠」等其他含义；仅声称已核对条件匹配，不把查询结果当作页面上下文。" };
   }
   if (candidates.length && requirements.budgetCents !== null) {
     const minimumPriceCents = candidates[0].priceCents;
@@ -177,8 +186,10 @@ export async function queryCatalogProducts(
       budgetAssessment: { minimumPriceCents, budgetCents: requirements.budgetCents, overByCents: minimumPriceCents - requirements.budgetCents },
       nextAction: "说明本次其他条件匹配商品的最低单价与超出金额，只询问是否愿意调整预算；不输出超预算商品卡片。" };
   }
-  return { ...base, checkedConstraints, status: "no_match_for_query",
-    nextAction: "说明按本次已记录条件暂未查到匹配，不扩大成全店无货；必要时只协商一个条件。" };
+  return { ...base, checkedConstraints, status: "no_match_for_query", candidates: fallback.map(toCatalogProduct),
+    nextAction: fallback.length
+      ? "说明按本次已记录条件没有完全匹配；在candidates中展示最接近的单品（它们只匹配品类/在售，其他条件未满足），逐件标出违反了哪一条（如风格、关键词、超出预算多少），不得称为推荐或可接受；给出两个出口（调整条件 / 先到这里），最后询问是否需要转人工（演示）。"
+      : "说明按本次已记录条件暂未查到匹配，不扩大成全店无货；必要时只协商一个条件。" };
 }
 
 export function toCatalogProduct(product: CatalogProduct) {

@@ -143,5 +143,16 @@ export async function queryAnchoredOutfits(
       overByCents: cheapest.assessedPriceCents - requirements.budgetCents, includesAnchor,
     }, nextAction: "说明已核对组合的实际金额与差额，一次协商一个条件，确认前不提高预算，不输出商品标记。" };
   }
-  return { ...base, status: "no_match_for_query", nextAction: "仅在店主已确认的具体组合范围内，当前条件没有匹配；不推断全店无组合，不拿其他品类或未确认关系补推荐。" };
+  // Owner decision D01-1 (2026-11-14): when nothing matches, still show the
+  // closest reviewed items, flagging what each one violates, and offer exits.
+  const partials = (requirements.budgetCents === null ? evaluated : evaluated.slice(0, 1)).slice(0, 2);
+  return { ...base, status: "no_match_for_query", products: partials.map(({ product }) => toCatalogProduct(product)),
+    outfits: partials.map(({ outfit }) => outfit), purchaseBasis,
+    budgetAssessment: partials.length && requirements.budgetCents !== null
+      ? { minimumPriceCents: partials[0].outfit.assessedPriceCents, budgetCents: requirements.budgetCents,
+        overByCents: partials[0].outfit.assessedPriceCents - requirements.budgetCents, includesAnchor }
+      : null,
+    nextAction: partials.length
+      ? "说明按当前全部条件没有完全匹配；按outfits展示最接近的已核对组合并明确标出它违反了哪一条（如超出预算多少），不得称为推荐或可接受；给出两个出口（调整条件 / 先到这里），最后询问是否需要转人工（演示）。卡片只用本轮products ID。"
+      : "仅在店主已确认的具体组合范围内，当前条件没有匹配；不推断全店无组合，不拿其他品类或未确认关系补推荐。" };
 }

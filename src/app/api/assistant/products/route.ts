@@ -573,7 +573,14 @@ function buildWhere(params: {
  * 工具已经算好 reportedPriceCents，但模型仍可能照抄 outfits 里的整套合计，
  * 因此在响应体顶层再给一个显式、不可误解的「本次应报金额」与一句口径说明。
  */
-function annotateOutfitPurchaseBasis<T extends { purchaseBasis?: string; reportedPriceCents?: number | null }>(result: T) {
+function annotateOutfitPurchaseBasis<T extends { purchaseBasis?: string; reportedPriceCents?: number | null }>(result: T & { status?: string; candidates?: unknown[] }) {
+  // Single-item no-match (D01-1): the nearest in-stock item is shown only as an
+  // explanation of the gap, never as a recommendation. Flag it so the answer node
+  // does not mistake the candidates array for a successful result.
+  const nearest = result.candidates;
+  if (result.status === "no_match_for_query" && Array.isArray(nearest) && nearest.length) {
+    return { ...result, priceBasisNote: "本次没有完全匹配；candidates只是最接近的单品，逐件说明它违反了哪一条，不得称为推荐或可接受，并给出调整条件/先到这里两个出口，最后询问是否需要转人工（演示）。" };
+  }
   if (result.purchaseBasis !== "newItemsOnly" || result.reportedPriceCents == null) return result;
   return {
     ...result,
@@ -636,9 +643,9 @@ export async function GET(request: Request) {  const expectedToken = process.env
           // 比较模式只返回店主审核过的固定比较组，不查数据库、不生成商品ID。
           ? ownerReviewedComparisonCatalog
           : await queryCatalogProducts(requirements.data, prisma.product, catalogQuery.data.limit);
-      const body = result.scope === "catalog_anchored_outfit"
-        ? annotateOutfitPurchaseBasis(result)
-        : result;
+      const body = result.scope === "internal_style_comparison"
+        ? result
+        : annotateOutfitPurchaseBasis(result);
       console.info("[assistant-tool] 结果", JSON.stringify({
         scope: result.scope, status: "status" in result ? result.status : "comparison",
         products: "products" in result ? result.products.length : 0,

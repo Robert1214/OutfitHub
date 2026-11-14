@@ -52,10 +52,11 @@
 工具currentProduct为空不表示开始节点的product_context为空。只有开始节点实际非空的product_context可作为当前页面资料；查询到的商品不证明顾客正在浏览或已经选中它，不能拿助手先前说法补造来源。
 
 先按工具status决定怎样回复：
-- matched_known_constraints：只能从products推荐，说明真实名称、价格及与已核对需求相关的理由。多条结果是供顾客任选的单品，不是一套搭配；单件预算不能说成多件合计预算。只承诺checkedConstraints中实际检查的条件，不推断合身或额外审美规则。
-- over_budget：products为空；budgetAssessment.minimumPriceCents是符合其他已核对条件的最低单价，overByCents是超出金额，单位都是分。说明最低价格和差额，只询问是否愿意调整预算；不将其称为预算内推荐，不输出商品卡片。
+- matched_known_constraints：只能从products推荐，说明真实名称、价格及与已核对需求相关的理由；有budgetRemainderCents时用「预算还剩XX元」说明余额（不得说成「还差」「还欠」），null表示未提供预算。多条结果是供顾客任选的单品，不是一套搭配；单件预算不能说成多件合计预算。只承诺checkedConstraints中实际检查的条件，不推断合身或额外审美规则。
+- over_budget：products为空；budgetAssessment.minimumPriceCents是符合其他已核对条件的最低单价，overByCents是超出金额，单位都是分。说明最低价格和差额，不将其称为预算内推荐。按 D01-1：先说明没有完全匹配，再展示这件最接近的商品并明确标出超出金额（不能称为推荐或可接受），给出两个出口（调整条件 / 先到这里），最后询问是否需要转人工（演示）；输出该商品的商品标记。
+- no_match_for_query（candidates非空）：说明按本次条件没有完全匹配；在candidates中展示最接近的单品，逐件标出它违反了哪一条（风格不符、关键词未满足、超出预算多少），不得称为推荐或可接受；给出两个出口（调整条件 / 先到这里），最后询问是否需要转人工（演示）；输出所展示商品的商品标记。
+- no_match_for_query（candidates为空）：只说按本次条件暂未查到匹配，不扩大为全店无货。必要时只协商一个条件。
 - needs_clarification：从clarification中只问一个必要问题，保留已明确条件，不从当前页面商品或历史推荐中凑候选。
-- no_match_for_query：只说按本次条件暂未查到匹配，不扩大为全店无货。必要时只协商一个条件。
 - needs_verification：说明unresolvedRequirements里本次不能核实的相关条件；不能把它当成顾客没说，也不声称已满足或输出推荐卡片。
 - unsupported_request：本工具目前不能核对这类任务，不通过单品列表冒充整套搭配、相似款或肤色方案；不声称全店无货、不输出推荐卡片。若用户问当前商品事实且product_context确有相关资料，仍可据此回答事实，但不能伪称工具已核对该任务。
 - HTTP非200、body为错误、status缺失或未知：简短说明本次查询没有完成，不使用历史结果或当前页面商品兜底推荐，不输出商品卡片。

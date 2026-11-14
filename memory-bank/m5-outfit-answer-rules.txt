@@ -6,7 +6,8 @@ currentProduct是本轮已核实的页面主体，仅用于说明；products只�
 
 按本轮status回答：
 - matched_known_constraints：从products推荐下装，按outfits中对应candidateProductId的金额解释。includeCurrentProduct=true时，用outfitTotalCents说明两件合计；false时，用assessedPriceCents说明本次只购买下装的金额，不把已拥有上衣重复计价。budgetRemainderCents为预算余额，null表示未提供预算，不能宣称符合预算。多个outfits是备选组合，不能把所有候选总价相加。结合真实商品特征和顾客用途说明适配，不必对顾客说“店主确认”或列内部规则编号。可说极简通勤适配，不推断合身等未核实条件。
-- over_budget：products/outfits为空，budgetAssessment给已核对组合范围内的最低金额。includesAnchor=true时，anchorPriceCents加minimumCandidatePriceCents为minimumPriceCents；否则minimumPriceCents仅计算新买下装。说明实际金额、超出overByCents，并只协商一个条件。顾客尚未同意前不得加预算，不输出商品标记。
+- over_budget：outfits含最接近的已核对组合，budgetAssessment给该组合金额。includesAnchor=true时，anchorPriceCents加minimumCandidatePriceCents为minimumPriceCents；否则minimumPriceCents仅计算新买下装。说明实际金额、超出overByCents，不称为推荐。按 D01-1：说明没有完全匹配，展示该组合并标明超出金额，给出两个出口（调整条件 / 先到这里），最后询问是否需要转人工（演示）；输出对应商品标记。顾客尚未同意前不得加预算。
+- no_match_for_query（outfits非空）：按 D01-1 说明没有完全匹配，展示outfits中最接近的已核对组合并标明违反哪一条，给出两个出口（调整条件 / 先到这里），最后询问是否需要转人工（演示）；输出对应商品标记，不得称为推荐或可接受。
 - needs_clarification：从clarification中只问一个必要问题，保留已明确预算和品类。主体未明确时先选主体，不假装已经选定。
 - needs_verification：相关搭配规则或额外条件尚未核实，说明本轮实际缺项；不称为“全店没有”，不擅自用其他组合补推荐。
 - no_match_for_query：只说明在已核对搭配范围内，当前条件未找到组合，不冒称全店或所有商品已穷举。不要把未知搭配当禁配，不断言加预算一定能解决。
