@@ -618,6 +618,17 @@ export async function GET(request: Request) {  const expectedToken = process.env
     if (!requirements.success) {
       return NextResponse.json({ error: "需求字段缺失、类型或预算范围不正确，未执行商品查询" }, { status: 400 });
     }
+    // 单行诊断：只记录提取出的检索字段与结果状态，不记录顾客原话与个人信息。
+    const trace = {
+      intent: requirements.data.intent,
+      category: requirements.data.category,
+      style: requirements.data.styleTags,
+      other: requirements.data.otherRequirements,
+      budget: [requirements.data.budgetCents, requirements.data.budgetScope],
+      anchor: Boolean(requirements.data.anchorProductId),
+      context: Boolean(catalogQuery.data.contextProductId),
+    };
+    console.info("[assistant-tool] 入参", JSON.stringify(trace));
     try {
       const result = requirements.data.intent === "outfit"
         ? await queryAnchoredOutfits(requirements.data, prisma.product, catalogQuery.data.contextProductId, catalogQuery.data.limit)
@@ -628,6 +639,12 @@ export async function GET(request: Request) {  const expectedToken = process.env
       const body = result.scope === "catalog_anchored_outfit"
         ? annotateOutfitPurchaseBasis(result)
         : result;
+      console.info("[assistant-tool] 结果", JSON.stringify({
+        scope: result.scope, status: "status" in result ? result.status : "comparison",
+        products: "products" in result ? result.products.length : 0,
+        clarification: "clarification" in result ? result.clarification : [],
+        unresolved: "unresolvedRequirements" in result ? result.unresolvedRequirements : [],
+      }));
       return NextResponse.json(body, { headers: { "Cache-Control": "no-store" } });
     } catch {
       console.error("完整需求商品查询失败");

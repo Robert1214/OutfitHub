@@ -38,6 +38,25 @@ const styleAliases: Record<string, string> = {
 
 export function normalizeStyle(value: string): string { return styleAliases[value] ?? value; }
 
+// "通勤/上班" describes when a garment is worn, not how it looks. The extractor
+// may put such words into styleTags; matching them against the style column with
+// hasEvery would drop every item that only has 极简/利落. Route them to occasions.
+const occasionWords = new Set([
+  "通勤", "上班", "通勤上班", "上班通勤", "日常", "休闲日常", "约会", "聚会",
+  "婚礼", "度假", "运动", "居家", "出席活动", "正式场合",
+]);
+
+export function splitStyleAndOccasion(styleTags: string[]): { styles: string[]; occasions: string[] } {
+  const styles: string[] = [];
+  const occasions: string[] = [];
+  for (const tag of styleTags) {
+    const normalized = normalizeStyle(tag);
+    const bare = normalized.replace(/(?:场景|场合|风)$/u, "");
+    (occasionWords.has(normalized) || occasionWords.has(bare) ? occasions : styles).push(bare || normalized);
+  }
+  return { styles: [...new Set(styles)], occasions: [...new Set(occasions)] };
+}
+
 // Conservative lexical matching: preserve unknown words instead of broadening to
 // every item in the category. Specific garment types use name/tags, not incidental
 // mentions in a description such as "can be worn with trousers".
@@ -129,10 +148,11 @@ export async function queryCatalogProducts(
       nextAction: "说明尚不能核实的相关条件，不把未核实条件说成已满足，也不要求顾客重复已明确的要求。" };
   }
 
-  const styles = [...new Set(requirements.styleTags.map(normalizeStyle))];
+  const { styles, occasions } = splitStyleAndOccasion(requirements.styleTags);
   const where: Prisma.ProductWhereInput = {
     status: "ON_SALE", stock: { gt: 0 }, category: { slug: requirements.category },
     ...(styles.length ? { styleTags: { hasEvery: styles } } : {}),
+    ...(occasions.length ? { occasionTags: { hasEvery: occasions } } : {}),
     AND: keywordFilters(requirements),
   };
   const limit = Math.max(1, Math.min(4, Math.trunc(requestedLimit) || 4));
@@ -141,7 +161,9 @@ export async function queryCatalogProducts(
   const candidates = await reader.findMany({
     where, select: catalogProductSelect, orderBy: [{ priceCents: "asc" }, { id: "asc" }], take: limit,
   });
-  const checkedConstraints = ["在售且库存大于零", "品类", "正向关键词", "全部明确风格标签", "已识别的排除品类",
+  const checkedConstraints = ["在售且库存大于零", "品类", "正向关键词",
+    ...(styles.length ? ["全部明确风格标签"] : []),
+    ...(occasions.length ? [`适用场合：${occasions.join("、")}`] : []), "已识别的排除品类",
     ...(requirements.budgetCents === null ? [] : ["单件预算"])];
   const products = candidates.filter((p) => requirements.budgetCents === null || p.priceCents <= requirements.budgetCents)
     .map(toCatalogProduct);
