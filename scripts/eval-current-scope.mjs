@@ -44,6 +44,7 @@ export async function readChatStream(response, startedAt) {
     if (event.type === "done") {
       result.done = true;
       result.conversationId = event.conversationId || "";
+      if (event.usage && typeof event.usage === "object") result.usage = event.usage;
     }
     // Do not save arbitrary upstream error bodies, headers, or model reasoning.
     if (event.type === "error") result.errors.push("application_stream_error");
@@ -181,7 +182,7 @@ async function main() {
         ...result, productIds: ids, cards,
         checks: { technical: result.errors.length ? "failed" : "passed", ...checkCards(ids, cards, turn.expected, catalog),
           extraction: "unverified", toolConstraints: "unverified", semanticBehavior: "unverified", factualClaims: "unverified", visual: "unverified" },
-        usage: null, cost: null };
+        usage: result.usage ?? null, cost: null };
       saveJson(path.join(dir, `${key}.json`), row); rows.push(row);
       console.log(JSON.stringify({ key, technical: row.checks.technical, markers: row.checks.productMarkers, latencyMs: row.latencyMs }));
       conversationId = result.conversationId;

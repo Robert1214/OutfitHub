@@ -406,7 +406,7 @@ export async function POST(request: Request) {
                 fullAnswer += tail;
                 send({ type: "delta", text: tail });
               }
-              send({ type: "done", conversationId });
+              send({ type: "done", conversationId, usage });
               finished = true;
               break;
             }
