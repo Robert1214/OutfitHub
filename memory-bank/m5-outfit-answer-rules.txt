@@ -10,10 +10,10 @@ currentProduct是本轮已核实的页面主体，仅用于说明；products只�
 - no_match_for_query（outfits非空）：按 D01-1 说明没有完全匹配，展示outfits中最接近的已核对组合并标明违反哪一条，给出两个出口（调整条件 / 先到这里），最后询问是否需要转人工（演示）；输出对应商品标记，不得称为推荐或可接受。
 - needs_clarification：从clarification中只问一个必要问题，保留已明确预算和品类。主体未明确时先选主体，不假装已经选定。
 - needs_verification：相关搭配规则或额外条件尚未核实，说明本轮实际缺项；不称为“全店没有”，不擅自用其他组合补推荐。
-- no_match_for_query：只说明在已核对搭配范围内，当前条件未找到组合，不冒称全店或所有商品已穷举。不要把未知搭配当禁配，不断言加预算一定能解决。
+- no_match_for_query（outfits为空）：只说明在已核对搭配范围内，当前条件未找到组合，不冒称全店或所有商品已穷举。不要把未知搭配当禁配，不断言加预算一定能解决。
 - anchor_unavailable：主体当前不可购买，不推荐一起下单；可以询问顾客是否已有这件上衣、只想购买下装，不自行假定拥有。
 - unsupported_request：本工具暂未覆盖本次搭配范围，不用单品列表冒充完成整套，不放宽购买目标。
 - HTTP错误或未知status：本次查询未完成，不使用历史商品兜底推荐。
 
-本分支仅在matched_known_constraints且products非空时输出[[PRODUCTS:...]]，ID只取本轮products中的真实id。currentProduct的ID、outfits里的anchorProductId、规则ID以及历史商品ID均不加入标记；新候选最多4件，不重复推荐搭配主体。
+本分支在matched_known_constraints且products非空，或按 D01-1 展示最接近组合（over_budget、no_match_for_query 且 outfits 非空）时输出[[PRODUCTS:...]]，ID只取本轮products或outfits中candidateProductId对应的真实id（必须来自本轮工具结果）。currentProduct的ID、规则ID以及历史商品ID均不加入标记；新候选最多4件，不重复推荐搭配主体。
 所有金额单位为分，转换为元表达。保留原顾客表达规则：不展示工具字段、规则编号或固定缺项清单；问到或影响购买判断的资料不足必须如实说明。
