@@ -1,0 +1,123 @@
+{
+  "date": "2026-11-11",
+  "channel": "local product tool; not Dify workflow",
+  "results": [
+    {
+      "name": "total800",
+      "http": 200,
+      "scope": "catalog_anchored_outfit",
+      "status": "over_budget",
+      "requirements": {
+        "q": "极简裤子",
+        "intent": "outfit",
+        "category": "bottoms",
+        "requestedCategories": [
+          "bottoms"
+        ],
+        "styleTags": [
+          "极简"
+        ],
+        "budgetCents": 80000,
+        "budgetScope": "total",
+        "includeCurrentProduct": true,
+        "anchorProductId": "cmvy255tt000caotqizp21rtq",
+        "otherRequirements": [
+          "不要鞋"
+        ],
+        "missingInformation": []
+      },
+      "currentProductId": "cmvy255tt000caotqizp21rtq",
+      "products": [],
+      "outfits": [],
+      "budgetAssessment": {
+        "anchorPriceCents": 45900,
+        "minimumCandidatePriceCents": 35900,
+        "minimumPriceCents": 81800,
+        "budgetCents": 80000,
+        "overByCents": 1800,
+        "includesAnchor": true
+      }
+    },
+    {
+      "name": "total900",
+      "http": 200,
+      "scope": "catalog_anchored_outfit",
+      "status": "matched_known_constraints",
+      "requirements": {
+        "q": "极简裤子",
+        "intent": "outfit",
+        "category": "bottoms",
+        "requestedCategories": [
+          "bottoms"
+        ],
+        "styleTags": [
+          "极简"
+        ],
+        "budgetCents": 90000,
+        "budgetScope": "total",
+        "includeCurrentProduct": true,
+        "anchorProductId": "cmvy255tt000caotqizp21rtq",
+        "otherRequirements": [
+          "不要鞋"
+        ],
+        "missingInformation": []
+      },
+      "currentProductId": "cmvy255tt000caotqizp21rtq",
+      "products": [
+        {
+          "id": "cmvy2n4w9000oa4tqhpng6ynm",
+          "name": "黑色高腰阔腿裤",
+          "priceCents": 35900
+        }
+      ],
+      "outfits": [
+        {
+          "anchorProductId": "cmvy255tt000caotqizp21rtq",
+          "candidateProductId": "cmvy2n4w9000oa4tqhpng6ynm",
+          "ruleId": "owner-minimal-commute-20261111-01",
+          "pairingReason": "店主确认黑色真丝衬衫与黑色高腰阔腿裤适合作为极简通勤组合。",
+          "anchorPriceCents": 45900,
+          "candidatePriceCents": 35900,
+          "outfitTotalCents": 81800,
+          "assessedPriceCents": 81800,
+          "budgetRemainderCents": 8200
+        }
+      ],
+      "budgetAssessment": null
+    },
+    {
+      "name": "single_regression",
+      "http": 200,
+      "scope": "catalog_single_item",
+      "status": "matched_known_constraints",
+      "requirements": {
+        "q": "极简裤子",
+        "intent": "search",
+        "category": "bottoms",
+        "requestedCategories": [
+          "bottoms"
+        ],
+        "styleTags": [
+          "极简"
+        ],
+        "budgetCents": 40000,
+        "budgetScope": "item",
+        "includeCurrentProduct": null,
+        "anchorProductId": null,
+        "otherRequirements": [
+          "不要鞋"
+        ],
+        "missingInformation": []
+      },
+      "currentProductId": null,
+      "products": [
+        {
+          "id": "cmvy2n4w9000oa4tqhpng6ynm",
+          "name": "黑色高腰阔腿裤",
+          "priceCents": 35900
+        }
+      ],
+      "budgetAssessment": null
+    }
+  ]
+}

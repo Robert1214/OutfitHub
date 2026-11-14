@@ -4,6 +4,16 @@ import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { allowRateLimit } from "@/lib/rate-limit";
+import { assistantRequirementsSchema } from "@/lib/assistant-requirements";
+import { queryCatalogProducts } from "@/lib/assistant-catalog";
+import { queryAnchoredOutfits } from "@/lib/assistant-outfits";
+import { ownerReviewedComparisonCatalog } from "@/lib/assistant-comparisons";
+
+const catalogQuerySchema = z.object({
+  requirements: z.string().min(1).max(8000),
+  limit: z.coerce.number().int().min(1).max(4).default(4),
+  contextProductId: z.string().trim().max(50).optional(),
+}).strict();
 
 const querySchema = z.object({
   // Dify 参数提取节点可能把 <think> 推理一起带进 q；
@@ -581,6 +591,34 @@ export async function GET(request: Request) {
   }
 
   const url = new URL(request.url);
+  // An explicit requirements request never falls back to legacy keyword branches.
+  if (url.searchParams.has("requirements")) {
+    const catalogQuery = catalogQuerySchema.safeParse(Object.fromEntries(url.searchParams));
+    const keys = [...url.searchParams.keys()];
+    if (!catalogQuery.success || new Set(keys).size !== keys.length) {
+      return NextResponse.json({ error: "完整需求查询只接受requirements、limit和contextProductId，请检查节点参数" }, { status: 400 });
+    }
+    let decoded: unknown;
+    try { decoded = JSON.parse(catalogQuery.data.requirements); } catch {
+      return NextResponse.json({ error: "requirements不是有效JSON，未执行商品查询" }, { status: 400 });
+    }
+    const requirements = assistantRequirementsSchema.safeParse(decoded);
+    if (!requirements.success) {
+      return NextResponse.json({ error: "需求字段缺失、类型或预算范围不正确，未执行商品查询" }, { status: 400 });
+    }
+    try {
+      const result = requirements.data.intent === "outfit"
+        ? await queryAnchoredOutfits(requirements.data, prisma.product, catalogQuery.data.contextProductId, catalogQuery.data.limit)
+        : requirements.data.intent === "comparison"
+          // 比较模式只返回店主审核过的固定比较组，不查数据库、不生成商品ID。
+          ? ownerReviewedComparisonCatalog
+          : await queryCatalogProducts(requirements.data, prisma.product, catalogQuery.data.limit);
+      return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
+    } catch {
+      console.error("完整需求商品查询失败");
+      return NextResponse.json({ error: "商品查询失败，请稍后重试" }, { status: 500 });
+    }
+  }
   const parsed = querySchema.safeParse({
     q: url.searchParams.get("q") ?? undefined,
     category: url.searchParams.get("category") ?? undefined,

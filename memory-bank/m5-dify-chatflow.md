@@ -431,18 +431,25 @@ memory-bank/m5-color-guide.md
 你是服装导购的需求提取器。根据顾客当前消息、可用对话历史和当前商品资料，只输出一个合法的 JSON 对象，不回答顾客，不推荐商品，不输出解释、Markdown 代码围栏或推理内容。
 
 输出必须包含以下所有字段，字段名不变，不增加其他字段。下面展示无已知条件时的字段格式；实际值按顾客消息与可用历史填写，不直接照抄默认值：
-{"q":"","intent":"unknown","category":"","styleTags":[],"budgetCents":null,"budgetScope":"none","includeCurrentProduct":null,"otherRequirements":[],"missingInformation":[]}
+{"q":"","intent":"unknown","category":"","requestedCategories":[],"styleTags":[],"budgetCents":null,"budgetScope":"none","includeCurrentProduct":null,"otherRequirements":[],"missingInformation":[]}
 
-q、intent、category、budgetScope 是字符串；styleTags、otherRequirements、missingInformation 是字符串数组；budgetCents 是非负整数或 null；includeCurrentProduct 是 true、false 或 null。使用 JSON 的双引号，不能写注释或尾随逗号。null 表示未知，不写成字符串 "null"。
+q、intent、category、budgetScope 是字符串；requestedCategories、styleTags、otherRequirements、missingInformation 是字符串数组；budgetCents 是非负整数或 null；includeCurrentProduct 是 true、false 或 null。使用 JSON 的双引号，不能写注释或尾随逗号。null 表示未知，不写成字符串 "null"。
 
 1. 顾客只修改一项条件时，只更新该项，保留历史中仍有效的商品指代、品类、风格和其他条件。新的明确要求覆盖旧要求；顾客明确换话题或重置需求时，不机械沿用旧条件。历史缺失时不要猜测。
-2. q 是简短的正向检索关键词，保留需要寻找的具体商品类型，例如“摇滚裤子”。买当前上衣再配裤子时，q 应描述所找裤子，不能只留下上衣名称。否定条件放进 otherRequirements，不作为正向检索词。
+2. q 是简短的正向检索关键词，只描述本次要寻找的候选商品，例如“摇滚裤子”。顾客指定一件上衣再配裤子时，上衣是搭配主体，即使本轮一起购买，q 也只描述所找裤子，不拼入主体名称；主体信息保留在 otherRequirements，不推断商品 ID。上下装都还没选定时，q可以保留两类商品，例如“滚石T恤 摇滚裤子”，不能偷偷省掉上衣。否定条件放进 otherRequirements，不作为正向检索词。
 3. intent 根据顾客要完成的任务判断，不按本次查询几件商品判断。独立寻找商品、没有搭配对象或组合要求时为 search；明确为某件服装寻找搭配、或要求组合时为 outfit，即使本次只需查一条裤子。明确找相似款为 similar；问当前商品事实为 product_info；肤色或配色咨询为 color_advice；无法判断为 unknown。顾客续轮只修改预算等条件时，保留原任务意图；不能仅因需要购买当前商品或有总预算就自动判断为 outfit。
-4. category 表示本次要查找的候选品类：上装 tops、下装 bottoms、连衣裙 dresses、外套 outerwear、配饰 accessories、鞋 shoes。为当前上衣配裤子时填 bottoms。没有明确候选品类或需要多个品类时填空字符串，并在 otherRequirements 保留明确的组合要求；不能擅自缩成一个品类。
+4. requestedCategories表示尚待寻找的候选品类列表，不包含已经选定的搭配主体。合法值：上装tops、下装bottoms、连衣裙dresses、外套outerwear、配饰accessories、鞋shoes；不能重复，不把“不要鞋”加入列表。只剩一类时category填该值；多个品类都未选定时category填空字符串，但requestedCategories必须保留这些品类；品类确实未知时列表为空、category也为空。
+   - “买一件滚石T恤和一条摇滚裤子”且上下文未选定上衣时，requestedCategories=["tops","bottoms"]、category=""。总预算明确时照常记录，不把“要什么品类”“总预算包含哪些已列出的商品”列为缺项。
+   - 顾客已选定具体上衣并要求搭配裤子时，requestedCategories=["bottoms"]、category="bottoms"、intent="outfit"；主体信息放入otherRequirements。主体可由顾客点名，不要求已有商品ID，但不能因页面存在商品资料就认定顾客选了它。
+   - 上一轮只询问是否用某件具体上衣作为搭配主体，顾客明确同意时，记录该选择并只保留尚未选定的候选品类；预算、风格、“不要鞋”等未更改条件继续保留。不能把确认选商品理解为同意提高预算。用户只改预算时，不改变品类列表；缺历史时不猜测。
 5. styleTags 只提取顾客明确要求的风格；没有则为空数组。不能因为当前商品有“休闲”标签，就自行认定顾客要休闲风搭配。当前商品资料用于指代，不是新增顾客要求的依据。
 6. budgetCents 只记录顾客预算并换算为整数分，500 元为 50000；不计算剩余预算，不改变商品价格。没有预算为 null，不能填 0。
-7. budgetScope：单件上限为 item，整套或多件合计上限为 total，已给金额但范围不清楚为 unknown，没有预算为 none。不能把整套预算当作单件上限。
-8. includeCurrentProduct：明确一起购买搭配主体为 true；明确已拥有它、预算仅用于新买搭配品时为 false；含义不清楚或不适用时为 null。不能仅因为页面有当前商品就默认需要购买它。
+7. budgetScope：单件上限为item，整套或多件合计上限为total，没有预算为none。顾客在一次选购中列出多件要买的商品，并给出一个统一预算，例如“买一件A和一条B，预算500”，该预算约束这次列出的商品合计，填total；只有明确说“每件”“单件”或金额只约束其中一件时才填item。待选品类有多个、具体商品尚未确定，不代表已明确的合计预算范围未知。确有相互冲突或无法确定归属的预算时才填unknown并记录具体缺项，不在missingInformation重复列出已经明确的范围。不能把整套预算当作单件上限；本规则不自动确定某件主体是否已经被选中。
+8. includeCurrentProduct 表示本次预算是否计入顾客指定的搭配主体，不表示页面是否传入商品 ID。
+   - 顾客明确“买指定的 A，再配 B，两件总预算 X 元”，且 A 是搭配主体时，填 true；budgetScope=total，budgetCents 按 X 元换算为分，不再将“预算是否包含 A”列为 missingInformation。
+   - 顾客明确已拥有主体、本次预算不包含主体，或预算只用于新买搭配单品时，填 false；预算范围仍按顾客实际表达填写。
+   - 只有包含关系确实不清楚或不适用时才填 null；不能仅看到“总预算”三个字就默认包含主体，也不能因商品 ID 或 product_context 为空就把已明确的包含关系改为 null。
+   - 指定主体可以来自页面，也可以由顾客明确点名。仅修改预算金额时保留已明确的包含关系，除非顾客同时改变预算范围；历史缺失时不猜测。
 9. otherRequirements 保留其余明确条件，包括场合、颜色、禁配、排除品类和指定候选范围。不要编造店主审美规则、商品事实或 ID。
 10. missingInformation 只记录理解本次需求必需但未知的信息；预算不是必填。历史与当前消息已说明的信息不要重复列为缺失。只改预算但没有可用历史时，记录原需求未知，不能自行补造。
 11. 相似款场景仍如实提取顾客提到的预算，不在提取阶段丢弃；是否使用预算由已确认的业务规则在后续处理。
@@ -498,67 +505,7 @@ q、intent、category、budgetScope 是字符串；styleTags、otherRequirements
 
 用于后续 Dify JavaScript 代码节点：输入 `text` 引用参数提取节点的 `.text`，不引用推理字段。返回 `q`、`category`、`styleTags`、`requirements` 四项，均为 String；其中 `requirements` 保留原始需求字段及 null，供后续预算与规则处理，不把总预算映射成单件上限。styleTags 仅进行逗号序列化，不偷偷改写标签。
 
-```javascript
-function main({ text }) {
-  if (typeof text !== "string" || !text.trim()) {
-    throw new Error("需求提取输出为空，未执行商品查询");
-  }
-  let data;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    throw new Error("需求提取输出不是合法 JSON，未执行商品查询");
-  }
-  if (!data || typeof data !== "object" || Array.isArray(data)) {
-    throw new Error("需求提取输出必须是 JSON 对象");
-  }
-  const fields = ["q", "intent", "category", "styleTags", "budgetCents",
-    "budgetScope", "includeCurrentProduct", "otherRequirements", "missingInformation"];
-  for (const key of fields) {
-    if (!Object.prototype.hasOwnProperty.call(data, key)) {
-      throw new Error("需求提取缺少字段：" + key);
-    }
-  }
-  if (Object.keys(data).some((key) => !fields.includes(key))) {
-    throw new Error("需求提取包含未约定字段");
-  }
-  if (typeof data.q !== "string" || data.q.length > 80) {
-    throw new Error("q 必须是最多 80 字符的检索词");
-  }
-  const enums = {
-    intent: ["search", "outfit", "similar", "product_info", "color_advice", "unknown"],
-    category: ["tops", "bottoms", "dresses", "outerwear", "accessories", "shoes", ""],
-    budgetScope: ["item", "total", "unknown", "none"]
-  };
-  for (const key of Object.keys(enums)) {
-    if (!enums[key].includes(data[key])) throw new Error("字段取值不合法：" + key);
-  }
-  for (const key of ["styleTags", "otherRequirements", "missingInformation"]) {
-    if (!Array.isArray(data[key]) || data[key].some((v) => typeof v !== "string" || !v.trim())) {
-      throw new Error("字段必须是非空字符串组成的数组：" + key);
-    }
-  }
-  if (data.styleTags.length > 8 || data.styleTags.some((v) => /[,，]/.test(v)) ||
-      data.styleTags.join(",").length > 300) {
-    throw new Error("风格标签不符合商品接口格式");
-  }
-  if (data.budgetCents !== null && (!Number.isSafeInteger(data.budgetCents) || data.budgetCents < 0)) {
-    throw new Error("预算必须是非负整数分或 null");
-  }
-  if ((data.budgetCents === null) !== (data.budgetScope === "none")) {
-    throw new Error("预算金额与预算范围不一致");
-  }
-  if (data.includeCurrentProduct !== null && typeof data.includeCurrentProduct !== "boolean") {
-    throw new Error("includeCurrentProduct 必须是布尔值或 null");
-  }
-  return {
-    q: data.q.trim(),
-    category: data.category,
-    styleTags: data.styleTags.join(","),
-    requirements: JSON.stringify(data)
-  };
-}
-```
+完整可复制代码现统一保存在 [dify-parse-requirements.js](../scripts/dify-parse-requirements.js)。将该文件全文替换到原「代码执行」节点即可；输入和四个 String 输出保持原样。新版兼容旧九字段，并校验/透传 requestedCategories，避免在文档与脚本中维护两份代码。
 
 本代码仅校验结构、类型和明显矛盾，不能证明风格/品类语义正确，也不执行预算、禁配或库存判断。接入时解析失败应阻断 HTTP 调用，不能设置空值默认结果继续查全店。q 为空、需澄清和 unknown 意图的路由仍须在调用工具前处理；尚未接线前只做节点测试。已确认的整套预算、样例搭配规则仍需后续接口与数据配套，不能发布中间配置。
 
@@ -640,3 +587,61 @@ function main({ text }) {
 ```
 
 用户随后要求 commit 全部目前工作并休息；本次仅做本地提交，不启动开发服务、不发布 Dify、不 push。Dify 配置由用户 UI 操作，未导出 DSL；当前文档是修改和验证记录，不能作为完整配置快照。
+
+### 12.12 样例核心行为通过后的话术修订（2026-11-10，待用户应用）
+
+最新状态：用户在两处插入指导后确认“这次回答没有多余的了”，文案问题已关闭，见 `m5-sample-run-20261110-13.md`。未回贴完整回复或DSL，不代表所有状态分支重新验收；本节标题和下方待应用表述为历史过程，当前转入未知品类对照，不再重复调成功文案。
+
+最新用户裁定：有明确顾客条件来源的简短确认可接受。“不要鞋”在原话及运行06的otherRequirements中均有依据，运行07的“不包含鞋”不再作为缺陷，也无需为了删除该句继续修改Dify。下方草稿已按此更新；之前要求一律删除的指导被本条取代，旧回复保留作复盘。
+
+最新运行12：新增requestedCategories后的600元续轮，用户确认requirements/status/products符合预期，实际回复556元/余44元；但仍附排除西裤及S01–S03、无商品ID、未知资料清单。核心行为通过，文案待改，证据见 `m5-sample-run-20261110-12.md`。这不是要求继续排查预算或重搭流程。
+
+用户随后贴出当前SYSTEM：其中没有【顾客回复表达】段，也没有此前让用户寻找的同类句子。修正操作：在“ID只能来自当前商品资料或商品工具结果；没有有效ID就不要输出标记。”之后、【肤色与配色咨询规则】之前，新增下方完整段落，不要求替换不存在的文字。第二个补充位置见§12.13。若后续版本已经加过，则更新已有段落，避免重复。
+
+```text
+【顾客回复表达】
+1. 成功推荐时，说明商品与价格、贴合需求的搭配理由、合计金额及预算差额。只对已核对条件作结论，例如“风格和预算都合适”，不泛称全部条件均满足。
+2. 顾客未问比较且已经找到匹配时，不主动介绍被排除的商品。可以简短确认顾客明确提出的要求，例如“不包含鞋”。
+3. 工具中的limitations用于约束回答，不逐条转述为结尾说明。不展示样例编号、工具状态、数据库ID缺失或内部核验过程；没有真实商品ID时不输出商品标记，不编造链接或声称可下单。
+4. 不在每次回复末尾罗列尺码、库存、材质、退换等未知资料。顾客问到、以其作为筛选条件或缺失会影响本轮结论时，明确说明相关缺项；不得编造，也不得将未知当作已满足。
+5. 超预算、无匹配或顾客要求比较时，解释与决定有关的金额、差额或不适配原因；无匹配的结论限定为本次已核对款式，不扩大为全店无货。需要协商或澄清时，一次只问一个必要问题。
+```
+
+此为文档中的局部修改草稿，AI未修改Dify。当前用户粘贴版本可确认缺表达段，但不能证明运行12当时的所有节点输入相同，也不代替DSL备份。应用后只需复核一次600元成功回复：商品与556元/余44元保留，去掉落选清单和内部说明，不增加现货/合身承诺；检查结果记录为新运行，不能覆盖原文。运行07对“不包含鞋”的接受继续生效，500元超预算的金额限制与协商规则继续保留。
+
+### 12.13 按用户当前提示词补齐样例判断（2026-11-10，待用户应用）
+
+用户提供的SYSTEM有一般预算/无匹配规则，也有needs_selection的五段处理；但未出现matched_known_constraints、over_budget、needs_clarification及no_known_match_in_samples的分支，没有products与evaluations的用途约束或sampleId不是正式ID的规则。末句“原有未知事实、样例ID和其他状态规则继续适用”不能替代缺失的正文。此次属于配置内容核对，不是新测试运行；不推断这些规则何时或为何缺失。
+
+第二处操作：在原文“当样例工具status=needs_selection时”之前插入下段。原needs_selection各段继续紧跟其后，不重复粘贴。第一处为§12.12的表达段；提取、代码执行、HTTP无需修改。
+
+```text
+【内部样例工具判断】
+仅当工具结果scope=internal_samples_only时，以下样例规则优先适用。
+只有开始节点实际传入且非空的product_context可以作为当前页面商品资料。样例工具的currentProduct来自固定测试资料，不是浏览记录；仅在顾客已明确搭配主体时用于该搭配计算。selection.anchorCandidate只是待选候选，新增推荐候选只能来自products，evaluations只用于解释原因和金额。不得根据工具结果或助手先前的说法，声称顾客正在浏览、已经选中某件商品，或已经读取页面。顾客追问来源时只说明有证据的来源；此前判断无依据时直接纠正，不补造解释。
+status=matched_known_constraints且products非空时，才可作成功推荐；仍需核对工具未覆盖的顾客条件。
+status=over_budget时，说明适配组合的总价及超出金额，再询问是否愿意调整预算；顾客同意前不能称为预算内推荐。
+status=needs_clarification时，按clarification提出一个必要问题，不从evaluations选款；不重复询问已明确的条件。
+status=no_known_match_in_samples时，仅说明本次已核对款式中未找到匹配，不能断言全店无货。状态缺失、未知或查询出错时，不从evaluations兜底推荐。
+sampleId不是正式商品ID。样例不输出[[PRODUCTS:...]]，不因其他规则要求商品数量或ID而编造。未知库存、材质、尺寸和退换保持未知，不声称现货、合身或可下单；按【顾客回复表达】决定哪些相关限制需要说明，不逐条输出内部限制。
+```
+
+第一处直接解决本次成功回复冗余；第二处恢复之前已经约定的工具使用边界，防止删掉内部说明后又把不符合状态的候选作为成功推荐。当前肤色规则不在本次修订范围；样例规则中的ID/数量优先级只约束样例测试。
+
+### 12.14 未知品类时不得把固定样例当作页面商品（2026-11-10）
+
+最新结果：用户确认品类澄清与来源追问两条回复均正确，见运行15；本项关闭，以下为原失败及修复过程。当前进入实际草稿DSL备份，参见m5-sample-baseline.md。
+
+运行14取得用户的正确提取结果、needs_clarification及product_context为空的确认，实际回答却说在看滚石T恤，并被追问后声称读到页面资料。本地复现原接口固定S01自动赋值currentProduct；现已修复未知品类与独立搜索不带入主体，明确outfit里的currentProductSource=internal_sample_anchor不是浏览证据。15项测试、类型/lint/build及现有3000直接HTTP通过，Dify修复后回复待验。
+
+精确操作：用户现有【内部样例工具判断】中，以“已确认搭配主体的事实可读取currentProduct”开头、到“evaluations只用于解释原因和金额。”结束的那一段，替换为上节最新的“只有开始节点实际传入且非空的product_context…”整段。只替换这一段，提取/代码执行/HTTP地址及两项Params保持现有配置。不增加输入字段或节点，不要求删掉S01参数以掩盖接口缺陷。
+
+之后新会话、商品上下文为空，复测“我想买件衣服，预算500元。”；应只询问品类。如继续问是否知道当前在看哪件，没有真实上下文必须承认不知道。只收集这两轮最终文字即可，不要求用户重新寻找已丢失的旧日志。来源防错是业务事实验收，与运行13已关闭的成功回复冗余问题分别记录。
+
+### 12.15 两套风格比较能力接入并首次发布（2026-11-13）
+
+状态：用户已发布，DSL快照 .local/dify-snapshots/20261113.yml，核对与实际验证配置一致（生产口径句在位、无测试残留）。网站端到端待验。
+
+内容：新增 intent=comparison 贯穿整链——提取提示词第3条末尾加comparison定义、末尾新增第13条（comparison时检索字段全空，偏好保留原话由回答环节读取）；代码执行节点枚举加comparison；商品工具requirements分支对comparison直接返回代码内店主审核比较组（src/lib/assistant-comparisons.ts，通勤A/B，无商品ID/购买链接，purchaseScope=undecided）；回答节点SYSTEM末尾追加比较规则段（scope-gated，生产口径句"scope标注的资料是店主审核的内部比较方案"）。HTTP节点异常处理保持"无"（fail-closed，方案§7已记录理由）。分类器/Start/Params/前端未改。
+
+验证：本地tsc/eslint/新增5项测试/现有31项测试/build全过；Dify草稿预览CF01（带上下文前缀）/CF02/CF03整链通过；回归抽查单品题与搭配题（无页面主体→needs_clarification）完全符合预期。观察项待用户定夺：CF01结尾倾向后追加追问、CF02结尾"内部比较"口径、CF03/CF01主动报小计并声明非总价。CF01空历史首轮intent=search已定位为评测题目缺"两套方案"上下文（非链路缺陷），首轮保留。执行与验收细节见m5-comparison-integration-plan.md、m5-outfit-comparison-brief.md、m5-comparison-node-test.md。

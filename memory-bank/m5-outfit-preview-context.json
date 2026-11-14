@@ -1,0 +1,33 @@
+{
+  "id": "cmvy255tt000caotqizp21rtq",
+  "slug": "black-silk-shirt",
+  "name": "黑色真丝衬衫",
+  "description": "桑蚕丝面料，微收腰剪裁，垂坠感好。黑色经典，单穿或内搭都利落。",
+  "priceCents": 45900,
+  "color": "黑色",
+  "sizeLabel": "均码",
+  "material": "桑蚕丝 100%",
+  "careInstructions": "建议干洗",
+  "refType": "GARMENT",
+  "status": "ON_SALE",
+  "stock": 1,
+  "categoryName": "上装",
+  "categorySlug": "tops",
+  "tags": [
+    "真丝",
+    "通勤",
+    "极简"
+  ],
+  "styleTags": [
+    "极简",
+    "优雅",
+    "利落"
+  ],
+  "occasionTags": [
+    "通勤",
+    "约会",
+    "正式"
+  ],
+  "returnPolicy": "RETURNABLE",
+  "imageUrl": "/products/black-silk-shirt-1.jpg"
+}

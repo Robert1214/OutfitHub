@@ -56,43 +56,6 @@ type SizeContextProduct = Omit<SizeProduct, "categorySlug"> & {
   category: { slug: string };
 };
 
-async function findSoldProductForQuery(query: string) {
-  const normalizedQuery = query.replace(/\s+/g, "");
-  const sold = await prisma.product.findMany({
-    where: { status: "SOLD" },
-    select: { id: true, name: true, categoryId: true },
-  });
-
-  return (
-    sold.find((product) =>
-      normalizedQuery.includes(product.name.replace(/\s+/g, "")),
-    ) ?? null
-  );
-}
-
-async function fallbackProductIds(
-  contextProduct: { id: string } | null,
-  query: string,
-): Promise<string[]> {
-  if (contextProduct) return [contextProduct.id];
-
-  const sold = await findSoldProductForQuery(query);
-  if (!sold) return [];
-
-  const alternatives = await prisma.product.findMany({
-    where: {
-      status: "ON_SALE",
-      categoryId: sold.categoryId,
-      id: { not: sold.id },
-    },
-    select: { id: true },
-    orderBy: [{ createdAt: "desc" }],
-    take: 2,
-  });
-
-  return [sold.id, ...alternatives.map((product) => product.id)];
-}
-
 function buildSizeAdviceText(
   product: SizeContextProduct | null,
   body: BodyMetrics | null,
@@ -382,26 +345,8 @@ export async function POST(request: Request) {
         controller.enqueue(encoder.encode(`${JSON.stringify(value)}\n`));
       };
 
-      let markerEnsured = false;
-      const ensureProductMarker = async () => {
-        if (markerEnsured || !fullAnswer.trim()) return;
-        markerEnsured = true;
-
-        const ids = await fallbackProductIds(contextProduct, parsed.data.query);
-        if (ids.length === 0) return;
-
-        // 有商品上下文时，如果模型已经输出过卡片，不再强行追加当前商品；
-        // 无上下文但用户问的是售罄商品时，即使模型只标了售罄款，
-        // 也补上同品类替代款。
-        if (contextProduct && fullAnswer.includes("[[PRODUCTS:")) return;
-        const missing = ids.filter((id) => !fullAnswer.includes(id));
-        if (missing.length === 0) return;
-
-        const marker = `\n\n[[PRODUCTS:${[...new Set(missing)].join(",")}]]`;
-        fullAnswer += marker;
-        send({ type: "delta", text: marker });
-      };
-
+      // Preserve the workflow's recommendation decision. A missing marker must
+      // not trigger a second, unfiltered catalog search or an unrelated page card.
       try {
         const reader = difyResponse.body!.getReader();
         let finished = false;
@@ -456,7 +401,6 @@ export async function POST(request: Request) {
                 fullAnswer += tail;
                 send({ type: "delta", text: tail });
               }
-              await ensureProductMarker();
               send({ type: "done", conversationId });
               finished = true;
               break;
@@ -484,7 +428,6 @@ export async function POST(request: Request) {
             fullAnswer += tail;
             send({ type: "delta", text: tail });
           }
-          await ensureProductMarker();
           send({ type: "done", conversationId });
         }
       } catch (error) {

@@ -13,6 +13,16 @@
       "type": "string",
       "enum": ["tops", "bottoms", "dresses", "outerwear", "accessories", "shoes", ""]
     },
+    "requestedCategories": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["tops", "bottoms", "dresses", "outerwear", "accessories", "shoes"]
+      },
+      "maxItems": 6,
+      "uniqueItems": true,
+      "description": "尚待寻找的候选品类，不含已选定搭配主体；单品类时category为该值，多品类或未知时category为空。旧草稿可省略，新提取提示词要求输出。"
+    },
     "styleTags": {
       "type": "array",
       "items": { "type": "string" },
@@ -30,6 +40,12 @@
     "includeCurrentProduct": {
       "type": ["boolean", "null"],
       "description": "预算是否包含当前作为搭配主体的商品；顾客明确一起买为true，已拥有且只买搭配品为false，未知或不适用为null。"
+    },
+    "anchorProductId": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "maxLength": 50,
+      "description": "仅在顾客明确选择当前页面商品作为搭配主体时复制真实id；页面存在不等于已选，独立搜索为null。旧单品/样例提取可省略，新搭配提取要求输出；HTTP还会核对与contextProductId一致。"
     },
     "otherRequirements": {
       "type": "array",

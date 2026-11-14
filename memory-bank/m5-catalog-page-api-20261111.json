@@ -1,0 +1,60 @@
+{
+  "date": "2026-11-11",
+  "channel": "published Dify via project /api/chat; not browser rendering",
+  "results": [
+    {
+      "name": "match_and_card",
+      "query": "找一条极简风裤子，单件预算400元，不要鞋。",
+      "done": true,
+      "error": "",
+      "latencyMs": 8577,
+      "firstTokenMs": 7798,
+      "conversationIdReturned": true,
+      "answer": "找到一条符合要求的极简风裤子：\n\n**黑色高腰阔腿裤** —— 359 元\n- 高腰垂感、宽松直筒版型，线条利落，符合极简风\n- 黑色，通勤和日常都好搭配\n- 只有裤子，不含鞋\n\n单件 359 元，比 400 元预算低 41 元；风格和单件预算都合适。\n\n[[PRODUCTS:cmvy2n4w9000oa4tqhpng6ynm]]",
+      "productIds": [
+        "cmvy2n4w9000oa4tqhpng6ynm"
+      ],
+      "cards": [
+        {
+          "id": "cmvy2n4w9000oa4tqhpng6ynm",
+          "name": "黑色高腰阔腿裤",
+          "slug": "black-wide-leg-pants",
+          "priceCents": 35900,
+          "imageUrl": "/products/black-wide-leg-pants-1.jpg",
+          "status": "ON_SALE",
+          "stock": 1
+        }
+      ],
+      "transportOk": true,
+      "cardCheck": true
+    },
+    {
+      "name": "lower_budget_no_card",
+      "query": "那单件预算改成300元。",
+      "done": true,
+      "error": "",
+      "latencyMs": 8480,
+      "firstTokenMs": 8152,
+      "conversationIdReturned": true,
+      "answer": "按“极简风裤子、不含鞋、单件预算 300 元”筛选，符合其他条件的最低单价是 **359 元**，超出预算 **59 元**。\n\n你愿意把单件预算调整到 360 元吗？",
+      "productIds": [],
+      "cards": [],
+      "transportOk": true,
+      "cardCheck": true
+    },
+    {
+      "name": "no_match_no_card",
+      "query": "想找摇滚风的裤子，单件预算400元，不要鞋。",
+      "done": true,
+      "error": "",
+      "latencyMs": 6731,
+      "firstTokenMs": 6251,
+      "conversationIdReturned": true,
+      "answer": "按本次已记录的条件（摇滚风、裤装、单件 400 元以内、不包含鞋）暂未查到匹配的款式。这个结果只限于本次查询，不代表全店都没有合适款。\n\n要不要我把其中一个条件调整一下再看看？比如放宽到 500 元预算。",
+      "productIds": [],
+      "cards": [],
+      "transportOk": true,
+      "cardCheck": true
+    }
+  ]
+}
