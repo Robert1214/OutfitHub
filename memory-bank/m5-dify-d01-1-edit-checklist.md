@@ -65,7 +65,7 @@
 
 替换后：
 ```
-- over_budget：outfits含最接近的已核对组合，budgetAssessment给该组合金额。includesAnchor=true时，anchorPriceCents加minimumCandidatePriceCents为minimumPriceCents；否则minimumPriceCents仅计算新买下装。说明实际金额、超出overByCents，不称为推荐。按 D01-1：说明没有完全匹配，展示该组合并标明超出金额，给出两个出口（调整条件 / 先到这里），最后询问是否需要转人工（演示）；输出对应商品标记。顾客尚未同意前不得加预算。
+- over_budget：outfits含最接近的已核对组合（candidateProductName 为商品名，必须使用，不得声称资料没有商品信息），products含该候选，budgetAssessment给该组合金额。includesAnchor=true时，anchorPriceCents加minimumCandidatePriceCents为minimumPriceCents；否则minimumPriceCents仅计算新买下装。说明实际金额、超出overByCents，不称为推荐。按 D01-1：说明没有完全匹配，展示该组合并标明超出金额，给出两个出口（调整条件 / 先到这里），最后询问是否需要转人工（演示）；输出对应商品标记。顾客尚未同意前不得加预算。
 ```
 
 ### 2) no_match_for_query（原行加条件 + 新增一行）
@@ -90,6 +90,12 @@
 ```
 本分支在matched_known_constraints且products非空，或按 D01-1 展示最接近组合（over_budget、no_match_for_query 且 outfits 非空）时输出[[PRODUCTS:...]]，ID只取本轮products或outfits中candidateProductId对应的真实id（必须来自本轮工具结果）。currentProduct的ID、规则ID以及历史商品ID均不加入标记；新候选最多4件，不重复推荐搭配主体。
 ```
+
+## 2026-11-15 补充（回归发现）
+
+R03-T1 实测：工具返回了 outfits 但模型说「资料没有给出具体名称」，不出卡片。原因：outfits 只含 id 与价格，不含商品名。
+已修：outfits 新增 `candidateProductName`，over_budget 同时返回 `products` 与 `outfits`。
+**Dify 需再改一行**：搭配段 over_budget 行开头补「（candidateProductName 为商品名，必须使用，不得声称资料没有商品信息），products含该候选」。
 
 ## 为什么两段都要改
 

@@ -15,7 +15,7 @@
       "id": "R01", "group": "regression", "purpose": "single budget decrease and recovery", "contextProductSlug": null, "completionEligible": true,
       "turns": [
         {"query": "找一条极简风裤子，单件预算400元，不要鞋。", "expected": {"status": "matched_known_constraints", "budgetCents": 40000, "budgetScope": "item", "category": "bottoms", "style": "极简", "excludeShoes": true, "productSlugs": ["black-wide-leg-pants"], "priceCents": 35900, "noRedundantClarification": true}},
-        {"query": "那单件预算改成300元。", "expected": {"status": "over_budget", "budgetCents": 30000, "budgetScope": "item", "category": "bottoms", "style": "极简", "excludeShoes": true, "productSlugs": [], "minimumPriceCents": 35900, "overByCents": 5900, "noProductMarkers": true, "maxQuestions": 1}},
+        {"query": "那单件预算改成300元。", "expected": {"status": "over_budget", "budgetCents": 30000, "budgetScope": "item", "category": "bottoms", "style": "极简", "excludeShoes": true, "productSlugs": ["black-wide-leg-pants"], "d01PartialResults": true, "minimumPriceCents": 35900, "overByCents": 5900, "maxQuestions": 1}},
         {"query": "那单件预算改回400元。", "expected": {"status": "matched_known_constraints", "budgetCents": 40000, "budgetScope": "item", "category": "bottoms", "style": "极简", "excludeShoes": true, "productSlugs": ["black-wide-leg-pants"], "noRedundantClarification": true}}
       ]
     },
@@ -23,13 +23,13 @@
       "id": "R02", "group": "regression", "purpose": "unknown category then no matching rock pants", "contextProductSlug": null, "completionEligible": false,
       "turns": [
         {"query": "我想买件衣服，单件预算400元。", "expected": {"status": "needs_clarification", "budgetCents": 40000, "budgetScope": "item", "category": "", "productSlugs": [], "currentProductIsNull": true, "noProductMarkers": true, "maxQuestions": 1}},
-        {"query": "想找摇滚风的裤子，不要鞋。", "expected": {"status": "no_match_for_query", "budgetCents": 40000, "budgetScope": "item", "category": "bottoms", "style": "摇滚", "excludeShoes": true, "productSlugs": [], "noProductMarkers": true, "noWholeStoreAbsenceClaim": true, "noAutomaticRelaxation": true}}
+        {"query": "想找摇滚风的裤子，不要鞋。", "expected": {"status": "no_match_for_query", "budgetCents": 40000, "budgetScope": "item", "category": "bottoms", "style": "摇滚", "excludeShoes": true, "productSlugs": ["black-wide-leg-pants", "denim-midi-skirt"], "d01PartialResults": true, "noWholeStoreAbsenceClaim": true, "noAutomaticRelaxation": true}}
       ]
     },
     {
       "id": "R03", "group": "regression", "purpose": "selected shirt budget negotiation and candidate-only marker", "contextProductSlug": "black-silk-shirt", "completionEligible": true,
       "turns": [
-        {"query": "我想买这件黑色真丝衬衫，再配一条极简风裤子，两件总预算800元，不要鞋。", "expected": {"status": "over_budget", "intent": "outfit", "category": "bottoms", "style": "极简", "budgetCents": 80000, "budgetScope": "total", "includeCurrentProduct": true, "anchorMatchesPage": true, "productSlugs": [], "minimumPriceCents": 81800, "overByCents": 1800, "noProductMarkers": true, "maxQuestions": 1}},
+        {"query": "我想买这件黑色真丝衬衫，再配一条极简风裤子，两件总预算800元，不要鞋。", "expected": {"status": "over_budget", "intent": "outfit", "category": "bottoms", "style": "极简", "budgetCents": 80000, "budgetScope": "total", "includeCurrentProduct": true, "anchorMatchesPage": true, "productSlugs": ["black-wide-leg-pants"], "d01PartialResults": true, "minimumPriceCents": 81800, "overByCents": 1800, "noAnchorMarker": true, "maxQuestions": 1}},
         {"query": "那两件总预算改成900元。", "expected": {"status": "matched_known_constraints", "intent": "outfit", "category": "bottoms", "style": "极简", "budgetCents": 90000, "budgetScope": "total", "includeCurrentProduct": true, "anchorMatchesPage": true, "excludeShoes": true, "productSlugs": ["black-wide-leg-pants"], "outfitTotalCents": 81800, "budgetRemainderCents": 8200, "noAnchorMarker": true, "noRedundantClarification": true}}
       ]
     },
@@ -48,7 +48,7 @@
     {
       "id": "R07", "group": "boundary", "purpose": "price boundary at cent precision", "contextProductSlug": null, "completionEligible": true,
       "turns": [
-        {"query": "找一条极简裤子，单件最多358.99元，不要鞋。", "expected": {"status": "over_budget", "budgetCents": 35899, "productSlugs": [], "minimumPriceCents": 35900, "overByCents": 1, "noProductMarkers": true}},
+        {"query": "找一条极简裤子，单件最多358.99元，不要鞋。", "expected": {"status": "over_budget", "budgetCents": 35899, "productSlugs": ["black-wide-leg-pants"], "minimumPriceCents": 35900, "overByCents": 1, "d01PartialResults": true}},
         {"query": "那改成单件最多359元。", "expected": {"status": "matched_known_constraints", "budgetCents": 35900, "budgetScope": "item", "category": "bottoms", "style": "极简", "excludeShoes": true, "productSlugs": ["black-wide-leg-pants"], "priceCents": 35900}}
       ]
     },

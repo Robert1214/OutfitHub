@@ -6,6 +6,7 @@ import {
 import { ownerPairingRules } from "./assistant-pairing-rules";
 
 type Outfit = {
+  candidateProductName: string;
   anchorProductId: string; candidateProductId: string; ruleId: string;
   pairingReason: string; anchorPriceCents: number; candidatePriceCents: number;
   outfitTotalCents: number; assessedPriceCents: number;
@@ -115,6 +116,7 @@ export async function queryAnchoredOutfits(
     const outfitTotalCents = anchor.priceCents + product.priceCents;
     const assessedPriceCents = includesAnchor ? outfitTotalCents : product.priceCents;
     return { product, outfit: {
+      candidateProductName: product.name,
       anchorProductId: anchor.id, candidateProductId: product.id, ruleId: rule.id,
       pairingReason: rule.reason, anchorPriceCents: anchor.priceCents, candidatePriceCents: product.priceCents,
       outfitTotalCents, assessedPriceCents,
@@ -137,11 +139,12 @@ export async function queryAnchoredOutfits(
   if (evaluated.length && requirements.budgetCents !== null) {
     const cheapest = evaluated[0].outfit;
     return { ...base, status: "over_budget", purchaseBasis,
+      products: [toCatalogProduct(evaluated[0].product)], outfits: [cheapest],
       reportedPriceCents: cheapest.assessedPriceCents, budgetAssessment: {
       anchorPriceCents: anchor.priceCents, minimumCandidatePriceCents: cheapest.candidatePriceCents,
       minimumPriceCents: cheapest.assessedPriceCents, budgetCents: requirements.budgetCents,
       overByCents: cheapest.assessedPriceCents - requirements.budgetCents, includesAnchor,
-    }, nextAction: "说明已核对组合的实际金额与差额，一次协商一个条件，确认前不提高预算，不输出商品标记。" };
+    }, nextAction: "说明已核对组合的实际金额与差额，不称为推荐。按 D01-1：说明没有完全匹配，展示该组合（outfits.candidateProductName 与金额）并标明超出金额，给出两个出口（调整条件 / 先到这里），最后询问是否需要转人工（演示）；输出对应商品标记。顾客尚未同意前不得提高预算。" };
   }
   // Owner decision D01-1 (2026-11-14): when nothing matches, still show the
   // closest reviewed items, flagging what each one violates, and offer exits.

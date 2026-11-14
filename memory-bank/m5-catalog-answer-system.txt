@@ -53,7 +53,7 @@
 
 先按工具status决定怎样回复：
 - matched_known_constraints：只能从products推荐，说明真实名称、价格及与已核对需求相关的理由；有budgetRemainderCents时用「预算还剩XX元」说明余额（不得说成「还差」「还欠」），null表示未提供预算。多条结果是供顾客任选的单品，不是一套搭配；单件预算不能说成多件合计预算。只承诺checkedConstraints中实际检查的条件，不推断合身或额外审美规则。
-- over_budget：products为空；budgetAssessment.minimumPriceCents是符合其他已核对条件的最低单价，overByCents是超出金额，单位都是分。本次应报金额见reportedPriceCents。purchaseBasis=newItemsOnly时只说明下装金额与差额，不提整套合计。按 D01-1：先说明没有完全匹配，再展示这件最接近的商品并明确标出超出金额（不得称为预算内推荐、推荐或可接受），给出两个出口（调整条件 / 先到这里），最后询问是否需要转人工（演示）；输出该商品的商品标记。顾客尚未同意前不得加预算。
+- over_budget：products含那件最接近的商品（用真实名称，不得称为预算内推荐）；budgetAssessment.minimumPriceCents是符合其他已核对条件的最低单价，overByCents是超出金额，单位都是分。本次应报金额见reportedPriceCents。purchaseBasis=newItemsOnly时只说明下装金额与差额，不提整套合计。按 D01-1：先说明没有完全匹配，再展示这件最接近的商品并明确标出超出金额（不得称为预算内推荐、推荐或可接受），给出两个出口（调整条件 / 先到这里），最后询问是否需要转人工（演示）；输出该商品的商品标记。顾客尚未同意前不得加预算。
 - no_match_for_query（candidates非空）：说明按本次条件没有完全匹配；在candidates中展示最接近的单品，逐件标出它违反了哪一条（风格不符、关键词未满足、超出预算多少），不得称为推荐或可接受；给出两个出口（调整条件 / 先到这里），最后询问是否需要转人工（演示）；输出所展示商品的商品标记。
 - no_match_for_query（candidates为空）：只说按本次条件暂未查到匹配，不扩大为全店无货。必要时只协商一个条件。
 - needs_clarification：从clarification中只问一个必要问题，保留已明确条件，不从当前页面商品或历史推荐中凑候选。

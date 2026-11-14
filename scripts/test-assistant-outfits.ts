@@ -50,8 +50,10 @@ test("live approved pair sums both prices with exact boundary and renewed budget
       assert.equal(result.outfits[0].budgetRemainderCents, budgetCents - total);
       assert.equal(result.products.some(p => p.id === a.id), false);
     } else {
-      assert.deepEqual(result.products, []);
-      assert.deepEqual(result.outfits, []);
+      // D01-1: over-budget still shows the nearest reviewed pair, named and carded.
+      assert.deepEqual(result.products.map(p => p.id), [p.id]);
+      assert.equal(result.outfits[0].candidateProductName, p.name);
+      assert.equal(result.outfits[0].assessedPriceCents, total);
       assert.equal(result.budgetAssessment?.minimumPriceCents, total);
       assert.equal(result.budgetAssessment?.overByCents, total - budgetCents);
     }

@@ -61,7 +61,8 @@ test("real catalog price boundary, below-budget result and zero/no budget are di
     const result = await queryCatalogProducts({ ...demand, q: pants.name, budgetCents, budgetScope: budgetCents === null ? "none" : "item" }, prisma.product);
     const affordable = budgetCents === null || budgetCents >= pants.priceCents;
     assert.equal(result.status, affordable ? "matched_known_constraints" : "over_budget");
-    assert.deepEqual(result.products.map((p) => p.id), affordable ? [pants.id] : []);
+    // D01-1: over budget still names the nearest item; the rule forbids recommending it.
+    assert.deepEqual(result.products.map((p) => p.id), [pants.id]);
     if (!affordable) assert.deepEqual(result.budgetAssessment, { minimumPriceCents: pants.priceCents, budgetCents, overByCents: pants.priceCents - budgetCents! });
   }
 });

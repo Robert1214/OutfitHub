@@ -183,8 +183,11 @@ export async function queryCatalogProducts(
   if (candidates.length && requirements.budgetCents !== null) {
     const minimumPriceCents = candidates[0].priceCents;
     return { ...base, checkedConstraints, status: "over_budget",
+      // D01-1: return the over-budget item itself so the answer node can name it and
+      // emit its marker; the rule still forbids presenting it as a recommendation.
+      products: [toCatalogProduct(candidates[0])],
       budgetAssessment: { minimumPriceCents, budgetCents: requirements.budgetCents, overByCents: minimumPriceCents - requirements.budgetCents },
-      nextAction: "说明本次其他条件匹配商品的最低单价与超出金额，只询问是否愿意调整预算；不输出超预算商品卡片。" };
+      nextAction: "说明本次其他条件匹配商品的最低单价与超出金额，不称为预算内推荐。按 D01-1：先说明没有完全匹配，再展示这件最接近的商品并明确标出超出金额（不得称为推荐或可接受），给出两个出口（调整条件 / 先到这里），最后询问是否需要转人工（演示）；输出该商品的商品标记。顾客尚未同意前不得提高预算。" };
   }
   return { ...base, checkedConstraints, status: "no_match_for_query", candidates: fallback.map(toCatalogProduct),
     nextAction: fallback.length

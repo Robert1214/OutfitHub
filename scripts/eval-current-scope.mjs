@@ -114,6 +114,8 @@ async function cardsFor(ids) {
 
 export function checkCards(ids, cards, expected, catalog) {
   const expectedIds = expected.productSlugs.map((slug) => catalog.find((p) => p.slug === slug).id);
+  // D01-1 partial results: the nearest items are informational, so order is not
+  // meaningful — only the exact set must match the declared candidates.
   const sameIds = ids.length === new Set(ids).size &&
     ids.length === expectedIds.length && ids.every((id) => expectedIds.includes(id));
   const cardFacts = cards.status === "not_applicable" ? "not_applicable" :
