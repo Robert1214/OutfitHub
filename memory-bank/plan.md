@@ -1,6 +1,7 @@
 # 实施计划 — outfitexpert-shop
 
 > **依据**：`memory-bank/prd.md` v0.8
+> **阻断：全量回归无法进行——DeepSeek 账户余额不足（402）（2026-11-14）**：17 轮中 12 个首轮全部 application_stream_error/空回答；assistant_logs 显示 DeepSeek 返回 402 Insufficient Balance。R2 修复后最后一次成功调用在 07:2x，余额在此之前耗尽。合并比较节点后每轮 LLM 调用增多、单轮耗时升到 19~78 秒，更耗额度。需用户充值后重跑：node scripts/eval-current-scope.mjs --run --snapshot=.local/dify-snapshots/catalog-outfit-v1-20261114-local（新基线已建好，含 v1 DSL 与当前代码指纹）。本次空跑记录不得当作回归结果。
 > **当前：R2 已修（场合词走 occasionTags）（2026-11-14）**：用户定夺 Q1 改场合、Q2 暂不补、Q3 观察。「400元以内极简风格裤子」修复前 6/6 未找到，修复后 17/17 返回 359 元；tool 直测「极简+通勤」由 no_match 变 matched。tsc/eslint/build、单测 36/36 通过。未改 Dify 配置（Dify 仍读同一接口）。剩余：单品段缺少 matched/over_budget 说明（未复现影响，待观察）；回答杂音观察中；全量回归待跑。详见 m5-fix-pm013-pm014-20261114.md。
 > **当前：D1 已定位为我方 anonId 问题，回归实为通过（2026-11-14）**：Dify 无故障（重启/重建均无关）。续轮失败根因：/api/chat 每轮生成新 Dify user，旧 conversationId 属于新 user → 404。固定 anonId 真实三轮复测全过：预算追问 → 总预算 818 超 18 协商；T1（续轮失忆）与 R2（400 极简无匹配）均未复现，已排除；温度 0.2 未损伤能力。仍待：P2 单件预算口径仍报 818（确认，待修）；会话过期应友好提示。详见 m5-regression-20261114.md。
 > **历史：温度0.2+预算规则首轮回归（2026-11-14，结论已更正）**：当日 7 次调用中 T1/R2 判断被后续复测推翻，PM-012 关闭；PM-013（P2）保留。
