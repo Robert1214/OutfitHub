@@ -27,7 +27,7 @@ export const categoryNames: Record<string, string> = {
 };
 
 const genericCategoryTerms: Record<string, string[]> = {
-  tops: ["上衣", "上装"], bottoms: ["下装"], dresses: [],
+  tops: ["上衣", "上装"], bottoms: ["下装", "裤装"], dresses: [],
   outerwear: ["外套"], accessories: ["配饰"], shoes: ["鞋履"],
 };
 
@@ -35,6 +35,23 @@ const styleAliases: Record<string, string> = {
   摇滚风: "摇滚", 极简风: "极简", 复古风: "复古", 休闲风: "休闲",
   简约风: "简约", 中性风: "中性", 基础款: "基础",
 };
+
+const FAMILY_TERMS: Record<string, string[]> = {
+  "裤": ["裤"], "裙": ["裙"], "T恤": ["T恤", "T 恤", "T-shirt", "TEE"], "鞋": ["鞋"],
+};
+
+// 款式家族（裤/裙/T恤/鞋）用内存判断，数据库只做粗筛：
+// 数据库端 AND 一个家族条件时，若还叠加价格排序+take，会把目标款式提前截掉。
+function familyWhere(match: string[]): Prisma.ProductWhereInput {
+  return { OR: [
+    ...match.map((term) => ({ name: { contains: term, mode: "insensitive" as const } })),
+    ...match.map((term) => ({ tags: { has: term } })),
+  ] };
+}
+
+function familyMatches(item: { name: string; tags: string[] }, terms: string[]): boolean {
+  return terms.some((term) => item.name.includes(term) || item.tags.includes(term));
+}
 
 export function normalizeStyle(value: string): string { return styleAliases[value] ?? value; }
 
@@ -82,10 +99,8 @@ export function keywordFilters(requirements: AssistantRequirements): Prisma.Prod
   for (const family of families) {
     if (!family.terms.some((term) => remaining.includes(term))) continue;
     for (const term of family.terms) remaining = remaining.split(term).join(" ");
-    filters.push({ OR: family.match.flatMap((term) => [
-      { name: { contains: term, mode: "insensitive" as const } },
-      { tags: { has: term } },
-    ]) });
+    // 款式家族改用共享的正则式「款式匹配」，和 keywordFilters 之外的调用方保持一致。
+    filters.push(familyWhere(family.match));
   }
   for (const token of remaining.split(/[\s,，。/、]+/).filter(Boolean)) {
     filters.push({ OR: [
@@ -168,15 +183,52 @@ export async function queryCatalogProducts(
       nextAction: "先确认相互冲突的品类要求，不自行取消排除条件。" };
   }
   if (unresolved.length) {
+    // 顾客提了无法核实的偏好（显瘦、体型、防水等）：既不能当作已满足，也不能因此不给任何候选。
+    // 走 D01-1：返回符合可核实条件的商品作为「最接近」，并列出未核实项，由回答节点如实标注。
+    const { styles: nearStyles, occasions: nearStyleOccasions } = splitStyleAndOccasion(requirements.styleTags);
+    const nearOccasions = [...new Set([...nearStyleOccasions, ...occasions])];
+    // 品类按 q 里出现的具体款式（裤/裙/T恤/鞋）收窄；q 为空或没提到具体款式时才退回整个品类。
+    // keywordFilters 的有界结果只有「款式家族」一种，通用词已在函数内剥离。
+    const wantedFamilies = Object.keys(FAMILY_TERMS).filter((key) =>
+      requirements.q.toLowerCase().includes(key.toLowerCase()));
+    const hasFamily = wantedFamilies.length > 0;
+    const broad: Prisma.ProductWhereInput = {
+      status: "ON_SALE", stock: { gt: 0 }, category: { slug: requirements.category },
+      ...(nearStyles.length ? { styleTags: { hasEvery: nearStyles } } : {}),
+      ...(nearOccasions.length ? { occasionTags: { hasEvery: nearOccasions } } : {}),
+      // 预算不能放进查询：先按价格升序取数会把预算内的高价候选挤掉。
+      // 取回后再按「预算内优先、否则最接近」排序，超预算的也要保留下来如实标注。
+    };
+    const orderBy: [{ priceCents: "asc" }, { id: "asc" }] = [{ priceCents: "asc" }, { id: "asc" }];
+    // 先取同品类最接近的若干件，再在内存里按款式家族（裤/裙/T恤/鞋）过滤；
+    // 直接交给数据库 AND 会因取数上限先取到别的款式，导致过滤后为空。
+    const pool = await reader.findMany({ where: broad, select: catalogProductSelect, orderBy, take: 24 });
+    const sameFamily = hasFamily
+      ? pool.filter((item) => wantedFamilies.some((key) => familyMatches(item, FAMILY_TERMS[key])))
+      : pool;
+    const budget = requirements.budgetCents;
+    const inBudget = budget === null ? sameFamily : sameFamily.filter((item) => item.priceCents <= budget);
+    // 预算内有符合可核实条件的就先给它们；没有才给最接近（可能超预算），并在回答里标出超出金额。
+    // 预算内没有时，仍按与可核实条件最接近的顺序给候选（可能超预算），由回答标明差额。
+    const trimmed = (inBudget.length ? inBudget : sameFamily).slice(0, 2);
+    const minimumPriceCents = sameFamily.length ? sameFamily[0].priceCents : null;
+    const overByCents = budget !== null && minimumPriceCents !== null && minimumPriceCents > budget
+      ? minimumPriceCents - budget : null;
     return { ...base, status: "needs_verification", unresolvedRequirements: unresolved,
-      nextAction: "说明尚不能核实的相关条件，不把未核实条件说成已满足，也不要求顾客重复已明确的要求。" };
+      products: trimmed.map(toCatalogProduct),
+      budgetAssessment: (budget === null || overByCents === null) ? null
+        : { minimumPriceCents: minimumPriceCents!, budgetCents: budget, overByCents },
+      nextAction: trimmed.length
+        ? "说明哪些条件无法核实（见unresolvedRequirements），不得把这些条件说成已满足。仍按 D01-1 展示products里最接近的单品并输出商品标记，逐件说明它满足哪些可核实条件、哪些无法核实；给出两个出口（调整条件 / 先到这里），涉及超预算或无法满足时最后询问是否需要转人工（演示）。"
+        : "说明尚不能核实的相关条件，不把未核实条件说成已满足，也不要求顾客重复已明确的要求。" };
   }
 
   const { styles, occasions: styleOccasions } = splitStyleAndOccasion(requirements.styleTags);
   const allOccasions = [...new Set([...styleOccasions, ...occasions])];
   const relevance = { category: { slug: requirements.category } };
+  const relevanceFilter = { category: { slug: requirements.category } } as const;
   const where: Prisma.ProductWhereInput = {
-    status: "ON_SALE", stock: { gt: 0 }, category: { slug: requirements.category },
+    status: "ON_SALE", stock: { gt: 0 }, ...relevanceFilter,
     ...(styles.length ? { styleTags: { hasEvery: styles } } : {}),
     ...(allOccasions.length ? { occasionTags: { hasEvery: allOccasions } } : {}),
     AND: keywordFilters(requirements),
@@ -201,7 +253,8 @@ export async function queryCatalogProducts(
   // Price ordering happens in the database BEFORE take. If the cheapest matching
   // item is over budget, no later item can be an affordable candidate.
   const orderBy: [{ priceCents: "asc" }, { id: "asc" }] = [{ priceCents: "asc" }, { id: "asc" }];
-  const candidates = await reader.findMany({ where, select: catalogProductSelect, orderBy, take: limit });
+  // 取数上限留出余量：按价格升序取数时，预算内的合格商品可能排在被截断的位置之后。
+  const candidates = await reader.findMany({ where, select: catalogProductSelect, orderBy, take: Math.max(limit, 8) });
   // D01-1: when nothing satisfies every condition, still fetch the in-stock items
   // of the same category so the nearest alternatives can be shown, flagged as such.
   const fallback = candidates.length ? []
@@ -211,7 +264,7 @@ export async function queryCatalogProducts(
     ...(occasions.length ? [`适用场合：${occasions.join("、")}`] : []), "已识别的排除品类",
     ...(requirements.budgetCents === null ? [] : ["单件预算"])];
   const products = candidates.filter((p) => requirements.budgetCents === null || p.priceCents <= requirements.budgetCents)
-    .map(toCatalogProduct);
+    .slice(0, limit).map(toCatalogProduct);
   if (products.length) {
     // Give the model the remainder as data so it rewrites "还剩 XX 元" verbatim
     // instead of re-deriving (and paraphrasing) the subtraction itself.
