@@ -37,7 +37,18 @@ export async function queryAnchoredOutfits(
   };
   if (requirements.intent !== "outfit" || (requirements.requestedCategories?.length ?? 0) > 1 ||
       (requirements.category && requirements.category !== "bottoms")) {
-    return { ...base, status: "unsupported_request", nextAction: "本阶段只支持以已选定的页面上衣搭配一件下装，不把单品列表当完整组合。" };
+    // 顾客要的搭配品类不是下装（如鞋、外套）时，仍返回该品类在售单品作 candidates，
+    // 由回答节点说明这只是单件推荐、不是搭配核对，避免用无库存依据的通用建议代替商品。
+    const items = (requirements.requestedCategories?.length ?? 0) === 1 && requirements.category &&
+      requirements.category !== "bottoms"
+      ? await reader.findMany({
+          where: { status: "ON_SALE", stock: { gt: 0 }, category: { slug: requirements.category } },
+          select: catalogProductSelect, orderBy: [{ priceCents: "asc" }, { id: "asc" }],
+          take: Math.max(1, Math.min(4, Math.trunc(requestedLimit) || 4)),
+        })
+      : [];
+    return { ...base, status: "unsupported_request", candidates: items.map(toCatalogProduct),
+      nextAction: "本阶段只支持以已选定的页面上衣搭配一件下装，不把单品列表当完整组合。candidates 非空时，从 candidates 推荐在售单品（名称与价格），并说明这是单件推荐、不是整套搭配核对，可简短说明与顾客所提商品风格是否相配；不得给出没有库存依据的款式清单，不编造材质、保暖或防滑属性；candidates 为空时说明本次没有可推荐的单品。" };
   }
   const clarification = [...requirements.missingInformation];
   if (!requirements.category) clarification.unshift("想为这件上衣搭配哪类单品");

@@ -118,6 +118,17 @@ export async function queryCatalogProducts(
     checkedConstraints: [] as string[],
   };
   if (requirements.intent !== "search" || (requirements.requestedCategories?.length ?? 0) > 1) {
+    // 顾客要「衬衫配鞋」这类非下装搭配时，仍返回在售同类单品的候选项（candidates），
+    // 由回答节点明确说明这只是单件推荐、不是搭配核对，避免用无库存依据的通用穿搭建议代替商品。
+    if (requirements.category && requirements.category !== "bottoms") {
+      const items = await reader.findMany({
+        where: { status: "ON_SALE", stock: { gt: 0 }, category: { slug: requirements.category } },
+        select: catalogProductSelect, orderBy: [{ priceCents: "asc" }, { id: "asc" }],
+        take: Math.max(1, Math.min(4, Math.trunc(requestedLimit) || 4)),
+      });
+      return { ...base, status: "unsupported_request", candidates: items.map(toCatalogProduct),
+        nextAction: "本工具不能核对这类搭配；candidates为非空同品类在售单品时，说明这只是单件推荐、不是整套搭配核对，可简短说明与顾客所提商品风格是否相配；不得给出没有库存依据的款式清单，不编造材质、保暖或防滑属性；candidates为空时说明本次没有可推荐的单品。" };
+    }
     return { ...base, status: "unsupported_request",
       nextAction: "本次查询暂不能核对整套搭配、相似款或其他任务；不将单品候选当成完整解决方案，不放宽原要求。" };
   }
@@ -134,10 +145,23 @@ export async function queryCatalogProducts(
 
   const excluded = new Set<string>();
   const unresolved: string[] = [];
+  const occasions: string[] = [];
+  // 场合词可带「适合/用于/穿去」等前缀，统一抽成场合值后交给 occasionTags 筛选。
+  const asOccasion = (value: string) => {
+    const trimmed = value.trim();
+    if (occasionWords.has(trimmed)) return trimmed;
+    const bare = trimmed.replace(/^(?:适合|用于|穿去|需要?)/u, "").trim();
+    return occasionWords.has(bare) ? bare : null;
+  };
   for (const requirement of requirements.otherRequirements) {
     const match = requirement.replace(/[\s，。！!]/g, "").match(/^(?:不要|不含|不包含|不需要)(上衣|上装|裤子|下装|连衣裙|外套|鞋子|鞋履|鞋|配饰)$/);
     if (match) excluded.add(categoryNames[match[1]]);
-    else unresolved.push(requirement);
+    // 「适合通勤/上班」是场景要求，商品有 occasionTags，应按场景筛选而不是当作无法核实的条件。
+    else {
+      const occasion = asOccasion(requirement);
+      if (occasion) occasions.push(occasion);
+      else unresolved.push(requirement);
+    }
   }
   if (excluded.has(requirements.category)) {
     return { ...base, status: "needs_clarification", clarification: ["要查找的品类与排除条件冲突，请确认要找哪一类"],
@@ -148,12 +172,13 @@ export async function queryCatalogProducts(
       nextAction: "说明尚不能核实的相关条件，不把未核实条件说成已满足，也不要求顾客重复已明确的要求。" };
   }
 
-  const { styles, occasions } = splitStyleAndOccasion(requirements.styleTags);
+  const { styles, occasions: styleOccasions } = splitStyleAndOccasion(requirements.styleTags);
+  const allOccasions = [...new Set([...styleOccasions, ...occasions])];
   const relevance = { category: { slug: requirements.category } };
   const where: Prisma.ProductWhereInput = {
     status: "ON_SALE", stock: { gt: 0 }, category: { slug: requirements.category },
     ...(styles.length ? { styleTags: { hasEvery: styles } } : {}),
-    ...(occasions.length ? { occasionTags: { hasEvery: occasions } } : {}),
+    ...(allOccasions.length ? { occasionTags: { hasEvery: allOccasions } } : {}),
     AND: keywordFilters(requirements),
   };
   const limit = Math.max(1, Math.min(4, Math.trunc(requestedLimit) || 4));
