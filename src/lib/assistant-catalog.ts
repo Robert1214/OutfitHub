@@ -182,11 +182,13 @@ export async function queryCatalogProducts(
     AND: keywordFilters(requirements),
   };
   // 顾客只说了宽泛品类（如“上衣”），没有给任何缩小条件时先问具体品类，避免一次列出一整类。
+  // 只有「顾客除了宽泛品类之外什么都没说」才追问；预算、风格、场合、「别太贵」这类偏好都算已给方向。
   const narrowing =
     requirements.budgetCents !== null ||
     styles.length > 0 ||
     allOccasions.length > 0 ||
-    keywordFilters(requirements).length > 0;
+    keywordFilters(requirements).length > 0 ||
+    unresolved.length > 0;
   if (!narrowing && requestedLimit > 1) {
     const available = await reader.findMany({ where, select: catalogProductSelect, orderBy: [{ priceCents: "asc" }, { id: "asc" }], take: 2 });
     if (available.length > 1) {
