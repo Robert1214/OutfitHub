@@ -274,9 +274,9 @@ function scoreProduct(
   return score;
 }
 
-async function findSoldExact(query: string): Promise<ToolProduct[]> {
-  const normalizedQuery = normalizeText(query);
-  if (normalizedQuery.length < 3) return [];
+async function findSoldExact(terms: string[]): Promise<ToolProduct[]> {
+  const normalizedTerms = terms.map(normalizeText).filter((term) => term.length >= 2);
+  if (normalizedTerms.length === 0) return [];
 
   const sold = await prisma.product.findMany({
     where: { status: "SOLD" },
@@ -284,23 +284,26 @@ async function findSoldExact(query: string): Promise<ToolProduct[]> {
     take: 20,
   });
 
+  // 按「整句」或「关键词」任一命中即可：顾客问「有复古乐福鞋吗」时，
+  // 整句对不上商品名「复古乐福鞋」（多了“有…吗”），但关键词能对上。
   return sold
     .filter((product) => {
       const normalizedName = normalizeText(product.name);
-      return (
-        normalizedName === normalizedQuery ||
-        normalizedName.includes(normalizedQuery) ||
-        normalizedQuery.includes(normalizedName)
+      return normalizedTerms.some(
+        (term) =>
+          normalizedName === term ||
+          normalizedName.includes(term) ||
+          term.includes(normalizedName),
       );
     })
     .slice(0, 1);
 }
 
 async function findSoldWithAlternatives(
-  query: string,
+  terms: string[],
   limit: number,
 ): Promise<ToolProduct[]> {
-  const sold = await findSoldExact(query);
+  const sold = await findSoldExact(terms);
   if (sold.length === 0) return [];
 
   const alternatives = await prisma.product.findMany({
@@ -858,7 +861,7 @@ export async function GET(request: Request) {  const expectedToken = process.env
       minPriceCents === undefined &&
       maxPriceCents === undefined;
     const soldResults = canCheckSold
-      ? await findSoldWithAlternatives(searchQuery, limit)
+      ? await findSoldWithAlternatives([searchQuery, ...queryTokens(searchQuery)], limit)
       : [];
 
     const results: ToolProduct[] = [];

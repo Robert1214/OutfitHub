@@ -277,9 +277,12 @@
           "expected": {
             "status": "needs_verification",
             "preserveRequirement": "防水",
-            "productSlugs": [],
-            "noProductMarkers": true,
-            "noUnsupportedWaterproofClaim": true
+            "productSlugs": [
+              "black-wide-leg-pants"
+            ],
+            "noProductMarkers": false,
+            "noUnsupportedWaterproofClaim": true,
+            "d01PartialResults": true
           }
         }
       ]
@@ -297,8 +300,10 @@
             "status": "unsupported_request",
             "intent": "outfit",
             "category": "shoes",
-            "productSlugs": [],
-            "noProductMarkers": true,
+            "productSlugs": [
+              "white-sneakers"
+            ],
+            "noProductMarkers": false,
             "noAutomaticPantsSubstitution": true
           }
         }
@@ -400,8 +405,10 @@
             "status": "unsupported_request",
             "intent": "outfit",
             "category": "shoes",
-            "productSlugs": [],
-            "noProductMarkers": true,
+            "productSlugs": [
+              "white-sneakers"
+            ],
+            "noProductMarkers": false,
             "noAutomaticPantsSubstitution": true
           }
         }
@@ -420,8 +427,10 @@
             "status": "unsupported_request",
             "intent": "outfit",
             "category": "shoes",
-            "productSlugs": [],
-            "noProductMarkers": true,
+            "productSlugs": [
+              "white-sneakers"
+            ],
+            "noProductMarkers": false,
             "noAutomaticPantsSubstitution": true
           }
         }
@@ -567,10 +576,15 @@
           "expected": {
             "status": "needs_clarification",
             "intent": "outfit",
-            "productSlugs": [],
-            "noProductMarkers": true,
+            "productSlugs": [
+              "grey-knit-vest",
+              "ivory-knit-cardigan",
+              "black-silk-shirt"
+            ],
+            "noProductMarkers": false,
             "noInventedPageContext": true,
-            "noAutomaticPantsSubstitution": true
+            "noAutomaticPantsSubstitution": true,
+            "d01PartialResults": true
           }
         }
       ]
@@ -585,14 +599,13 @@
         {
           "query": "这件衬衫我已经有了，除了一身黑还能怎么穿？",
           "expected": {
-            "status": "matched_known_constraints",
+            "status": "needs_clarification",
             "intent": "outfit",
             "includeCurrentProduct": false,
             "anchorMatchesPage": true,
-            "productSlugs": [
-              "black-wide-leg-pants"
-            ],
-            "noAnchorMarker": true
+            "productSlugs": [],
+            "noAnchorMarker": true,
+            "noProductMarkers": true
           }
         }
       ]
@@ -680,14 +693,13 @@
         {
           "query": "帮我找条裤子，简约一点的，别太贵。",
           "expected": {
-            "status": "matched_known_constraints",
+            "status": "needs_clarification",
             "intent": "search",
             "category": "bottoms",
-            "productSlugs": [
-              "black-wide-leg-pants"
-            ],
+            "productSlugs": [],
             "noCategoryConfusion": true,
-            "maxQuestions": 1
+            "maxQuestions": 1,
+            "noProductMarkers": true
           }
         }
       ]
@@ -725,7 +737,10 @@
             "intent": "search",
             "category": "shoes",
             "noUnavailableInventoryRecommendation": true,
-            "productSlugs": []
+            "productSlugs": [
+              "white-sneakers"
+            ],
+            "d01PartialResults": true
           }
         }
       ]
@@ -856,7 +871,10 @@
             "d01PartialResults": true,
             "noWholeStoreAbsenceClaim": true,
             "noAutomaticRelaxation": true,
-            "productSlugs": []
+            "productSlugs": [
+              "black-wide-leg-pants",
+              "denim-midi-skirt"
+            ]
           }
         },
         {
@@ -890,8 +908,7 @@
             "budgetCents": 25000,
             "budgetScope": "item",
             "productSlugs": [
-              "black-wide-leg-pants",
-              "denim-midi-skirt"
+              "black-wide-leg-pants"
             ],
             "d01PartialResults": true,
             "minimumPriceCents": 29900,

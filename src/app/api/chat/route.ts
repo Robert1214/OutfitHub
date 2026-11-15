@@ -76,14 +76,16 @@ function buildSizeAdviceText(
   });
   const marker = `\n\n[[PRODUCTS:${product.id}]]`;
 
+  // 还在追问信息时不给卡片：顾客说得出「这件」就说明前面已给过卡片，
+  // 从商品页进来时聊天框顶部也一直显示「正在咨询：xxx」，再给一次是重复。
   if (advice.kind === "missing-body") {
     return `${product.name}：请先补充${advice.requiredFields
       .map((field) => BODY_FIELD_LABEL[field])
-      .join("、")}，我才能判断合身程度。${marker}`;
+      .join("、")}，我才能判断合身程度。`;
   }
 
   if (advice.kind === "missing-product") {
-    return `${product.name}：${advice.detail}${marker}`;
+    return `${product.name}：${advice.detail}`;
   }
 
   if (advice.kind === "not-applicable") {

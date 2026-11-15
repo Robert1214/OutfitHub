@@ -283,10 +283,41 @@ export async function queryCatalogProducts(
       budgetAssessment: { minimumPriceCents, budgetCents: requirements.budgetCents, overByCents: minimumPriceCents - requirements.budgetCents },
       nextAction: "说明本次其他条件匹配商品的最低单价与超出金额，不称为预算内推荐。按 D01-1：先说明没有完全匹配，再展示这件最接近的商品并明确标出超出金额（不得称为推荐或可接受），给出两个出口（调整条件 / 先到这里），最后询问是否需要转人工（演示）；输出该商品的商品标记。顾客尚未同意前不得提高预算。" };
   }
+  // 顾客问的款式如果存在但已售罄，要把它带出来并如实说明「有这款但售罄」，
+  // 不能只说「没有匹配」，让顾客以为店里从没进过。售罄商品只作说明，不进 candidates 的推荐位。
+  const soldOut = await findSoldOutByTokens(reader, requirements);
   return { ...base, checkedConstraints, status: "no_match_for_query", candidates: fallback.map(toCatalogProduct),
-    nextAction: fallback.length
+    // 售罄款式直接写进 nextAction 文字：模型一定能读到 nextAction，
+    // 不必依赖 HTTP 工具是否把新增字段透传给模型。
+    nextAction: soldOut.length
+      ? `说明按本次已记录条件没有完全匹配；首先如实说明顾客问的款式${soldOut.map((item) => `「${item.name}」`).join("")}店里有但已经售罄，不得说成"没有这款"或"店里没有"；再在candidates中展示最接近的在售单品，逐件标出违反了哪一条，不得称为推荐或可接受；给出两个出口（调整条件 / 先到这里），最后询问是否需要转人工（演示）；输出所展示商品的商品标记。`
+      : fallback.length
       ? "说明按本次已记录条件没有完全匹配；在candidates中展示最接近的单品（它们只匹配品类/在售，其他条件未满足），逐件标出违反了哪一条（如风格、关键词、超出预算多少），不得称为推荐或可接受；给出两个出口（调整条件 / 先到这里），最后询问是否需要转人工（演示）。"
       : "说明按本次已记录条件暂未查到匹配，不扩大成全店无货；必要时只协商一个条件。" };
+}
+
+// 按关键词（2~4 字）和商品名互相包含来识别「顾客问的款式」，
+// 整句严格匹配会漏掉「有复古乐福鞋吗」这种带问句的写法。
+async function findSoldOutByTokens(reader: CatalogReader, requirements: AssistantRequirements): Promise<CatalogProduct[]> {
+  const text = requirements.q.trim();
+  if (text.length < 2) return [];
+  const grams = new Set<string>();
+  const chars = Array.from(text);
+  for (let size = 2; size <= Math.min(4, chars.length); size += 1) {
+    for (let index = 0; index + size <= chars.length; index += 1) grams.add(chars.slice(index, index + size).join(""));
+  }
+  const sold = await reader.findMany({
+    where: { status: "SOLD", ...(requirements.category ? { category: { slug: requirements.category } } : {}) },
+    select: catalogProductSelect, orderBy: [{ priceCents: "asc" }, { id: "asc" }], take: 20,
+  });
+  return sold.filter((product) => {
+    if (product.name.includes(text)) return true;
+    let hits = 0;
+    for (let index = 0; index + 2 <= product.name.length; index += 1) {
+      if (grams.has(product.name.slice(index, index + 2))) hits += 1;
+    }
+    return hits >= 2;
+  }).slice(0, 2);
 }
 
 export function toCatalogProduct(product: CatalogProduct) {
