@@ -181,6 +181,20 @@ export async function queryCatalogProducts(
     ...(allOccasions.length ? { occasionTags: { hasEvery: allOccasions } } : {}),
     AND: keywordFilters(requirements),
   };
+  // 顾客只说了宽泛品类（如“上衣”），没有给任何缩小条件时先问具体品类，避免一次列出一整类。
+  const narrowing =
+    requirements.budgetCents !== null ||
+    styles.length > 0 ||
+    allOccasions.length > 0 ||
+    keywordFilters(requirements).length > 0;
+  if (!narrowing && requestedLimit > 1) {
+    const available = await reader.findMany({ where, select: catalogProductSelect, orderBy: [{ priceCents: "asc" }, { id: "asc" }], take: 2 });
+    if (available.length > 1) {
+      return { ...base, status: "needs_clarification",
+        clarification: ["具体想要哪一类款式或风格"],
+        nextAction: "顾客只说了宽泛品类且没有其他条件时，先只问一句具体想要哪一类，本轮不推荐、不介绍商品、不输出商品标记。" };
+    }
+  }
   const limit = Math.max(1, Math.min(4, Math.trunc(requestedLimit) || 4));
   // Price ordering happens in the database BEFORE take. If the cheapest matching
   // item is over budget, no later item can be an affordable candidate.
