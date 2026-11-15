@@ -56,6 +56,20 @@ const productSelect = {
   },
 } satisfies Prisma.ProductSelect;
 
+// 顾客用「这两件/这两套」指代时，工具无法确认它们就是店主审核的比较组。
+// 明确返回不可比较，避免回答节点把内部比较样例当成顾客手上的商品。
+const compareTargetUnavailable = {
+  scope: "internal_style_comparison",
+  status: "compare_target_unavailable",
+  comparisonOnly: true,
+  currentProduct: null,
+  items: [],
+  comparisonOptions: [],
+  nextAction:
+    "不能比较：顾客没有指定可以核对的两件商品。只说明本条功能目前只支持店主已核对过的固定比较组，请顾客说出具体商品的名称或从商品页进入；不得输出任何商品名称、比较结论、价格或商品标记，不得沿用历史推荐。",
+} as const;
+
+
 type ToolProduct = Prisma.ProductGetPayload<{
   select: typeof productSelect;
 }>;
@@ -634,6 +648,7 @@ export async function GET(request: Request) {  const expectedToken = process.env
       budget: [requirements.data.budgetCents, requirements.data.budgetScope],
       anchor: Boolean(requirements.data.anchorProductId),
       context: Boolean(catalogQuery.data.contextProductId),
+      compare: requirements.data.compareItems ?? [],
     };
     console.info("[assistant-tool] 入参", JSON.stringify(trace));
     try {
@@ -641,7 +656,8 @@ export async function GET(request: Request) {  const expectedToken = process.env
         ? await queryAnchoredOutfits(requirements.data, prisma.product, catalogQuery.data.contextProductId, catalogQuery.data.limit)
         : requirements.data.intent === "comparison"
           // 比较模式只返回店主审核过的固定比较组，不查数据库、不生成商品ID。
-          ? ownerReviewedComparisonCatalog
+          // 顾客用「这两件」指代其他商品时返回 compare_target_unavailable，避免把内部样例当成顾客买的商品。
+          ? (requirements.data.compareItems ?? []).length ? compareTargetUnavailable : ownerReviewedComparisonCatalog
           : await queryCatalogProducts(requirements.data, prisma.product, catalogQuery.data.limit);
       const body = result.scope === "internal_style_comparison"
         ? result

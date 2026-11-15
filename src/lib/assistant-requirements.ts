@@ -5,6 +5,8 @@ const candidateCategory = z.enum(["tops", "bottoms", "dresses", "outerwear", "ac
 // Shared wire format for the existing Dify text extractor and code node.
 export const assistantRequirementsSchema = z.object({
   q: z.string().trim().max(80),
+  // compareItems：顾客用「这两件/这两套」等指代时保留指代对象，供比较分支核对是否就是店主已审核的比较组。
+  compareItems: z.array(z.string().max(60)).max(6).optional(),
   intent: z.enum(["search", "outfit", "similar", "product_info", "color_advice", "comparison", "unknown"]),
   category: z.enum(["tops", "bottoms", "dresses", "outerwear", "accessories", "shoes", ""]),
   requestedCategories: z.array(candidateCategory).max(6)
