@@ -1,23 +1,13 @@
 import { NextResponse } from "next/server";
-import sharp, { type Metadata } from "sharp";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import {
-  deletePhotoObject,
-  getSignedPhotoUrl,
+  deleteObject,
+  getSignedUrl,
   isCosConfigured,
   putUserPhoto,
 } from "@/lib/cos";
-
-const MAX_BYTES = 8 * 1024 * 1024;
-const MIN_DIMENSION = 200;
-const ALLOWED_FORMATS = new Set(["jpeg", "png", "webp"]);
-
-function normalizeContentType(format: string): string {
-  if (format === "png") return "image/png";
-  if (format === "webp") return "image/webp";
-  return "image/jpeg";
-}
+import { ImageValidationError, validateImageFile } from "@/lib/image";
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -42,48 +32,19 @@ export async function POST(request: Request) {
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "请选择一张照片" }, { status: 400 });
   }
-  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-    return NextResponse.json(
-      { error: "只支持 JPG / PNG / WebP 格式" },
-      { status: 400 },
-    );
-  }
-  if (file.size > MAX_BYTES) {
-    return NextResponse.json(
-      { error: "图片超过 8MB，请换一张" },
-      { status: 400 },
-    );
-  }
 
-  const buffer = Buffer.from(await file.arrayBuffer());
-
-  let metadata: Metadata;
+  let image;
   try {
-    metadata = await sharp(buffer).metadata();
-  } catch {
-    return NextResponse.json(
-      { error: "图片无法识别，请换一张" },
-      { status: 400 },
+    image = await validateImageFile(file);
+  } catch (error) {
+    if (error instanceof ImageValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    console.error(
+      "照片校验异常：",
+      error instanceof Error ? error.message : "unknown",
     );
-  }
-
-  const format = metadata.format;
-  if (!format || !ALLOWED_FORMATS.has(format)) {
-    return NextResponse.json(
-      { error: "只支持 JPG / PNG / WebP 格式" },
-      { status: 400 },
-    );
-  }
-  if (
-    !metadata.width ||
-    !metadata.height ||
-    metadata.width < MIN_DIMENSION ||
-    metadata.height < MIN_DIMENSION
-  ) {
-    return NextResponse.json(
-      { error: "图片太小，可能看不清主体，请换一张清晰的照片" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "照片处理失败，请重试" }, { status: 500 });
   }
 
   const userId = session.user.id;
@@ -95,11 +56,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "请先登录" }, { status: 401 });
   }
 
-  const contentType = normalizeContentType(format);
-
   let newKey: string;
   try {
-    newKey = await putUserPhoto(userId, buffer, contentType);
+    // 原图不压缩、不重编码（PRD §3.9：MPS 输入需原图）
+    newKey = await putUserPhoto(userId, image.buffer, image.contentType);
   } catch (error) {
     console.error(
       "照片上传 COS 失败：",
@@ -117,7 +77,7 @@ export async function POST(request: Request) {
       data: { photoKey: newKey },
     });
   } catch (error) {
-    await deletePhotoObject(newKey).catch(() => undefined);
+    await deleteObject(newKey).catch(() => undefined);
     console.error(
       "照片 key 写入失败：",
       error instanceof Error ? error.message : "unknown",
@@ -129,7 +89,7 @@ export async function POST(request: Request) {
   }
 
   if (user.photoKey) {
-    await deletePhotoObject(user.photoKey).catch((error: unknown) => {
+    await deleteObject(user.photoKey).catch((error: unknown) => {
       console.error(
         "删除旧照片失败：",
         error instanceof Error ? error.message : "unknown",
@@ -137,7 +97,7 @@ export async function POST(request: Request) {
     });
   }
 
-  const url = await getSignedPhotoUrl(newKey);
+  const url = await getSignedUrl(newKey);
   return NextResponse.json({ url });
 }
 
@@ -166,7 +126,7 @@ export async function DELETE() {
   }
 
   try {
-    await deletePhotoObject(user.photoKey);
+    await deleteObject(user.photoKey);
   } catch (error) {
     console.error(
       "删除照片 COS 对象失败：",
