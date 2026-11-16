@@ -44,13 +44,11 @@
             "category": "bottoms",
             "style": "极简",
             "excludeShoes": true,
-            "productSlugs": [
-              "black-wide-leg-pants"
-            ],
             "d01PartialResults": true,
             "minimumPriceCents": 35900,
             "overByCents": 5900,
-            "maxQuestions": 1
+            "maxQuestions": 1,
+            "productSlugs": []
           }
         },
         {
@@ -62,10 +60,8 @@
             "category": "bottoms",
             "style": "极简",
             "excludeShoes": true,
-            "productSlugs": [
-              "black-wide-leg-pants"
-            ],
-            "noRedundantClarification": true
+            "noRedundantClarification": true,
+            "productSlugs": []
           }
         }
       ]
@@ -150,13 +146,10 @@
             "includeCurrentProduct": true,
             "anchorMatchesPage": true,
             "excludeShoes": true,
-            "productSlugs": [
-              "black-wide-leg-pants"
-            ],
             "outfitTotalCents": 81800,
             "budgetRemainderCents": 8200,
-            "noAnchorMarker": true,
-            "noRedundantClarification": true
+            "noRedundantClarification": true,
+            "productSlugs": []
           }
         }
       ]
