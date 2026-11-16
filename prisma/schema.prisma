@@ -48,6 +48,28 @@ enum OrderStatus {
   REFUNDED
 }
 
+// ---------- OutfitHub ----------
+
+enum ItemCategory {
+  TOP
+  BOTTOM
+  SHOES
+  ACCESSORY
+}
+
+enum ItemZone {
+  WARDROBE
+  LOOK
+  NEW
+}
+
+enum TryonStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String?  @unique
@@ -71,6 +93,12 @@ model User {
   favorites  Favorite[]
   footprints Footprint[]
   assistantLogs AssistantLog[]
+
+  // OutfitHub
+  wardrobeItems WardrobeItem[]
+  outfits       Outfit[]
+  tryonRecords  TryonRecord[]
+  tags          Tag[]
 
   @@map("users")
 }
@@ -275,4 +303,146 @@ model AssistantLog {
   @@index([userId, createdAt])
   @@index([createdAt])
   @@map("assistant_logs")
+}
+
+// ---------- OutfitHub ----------
+
+model WardrobeItem {
+  id          String       @id @default(cuid())
+  userId      String
+  zone        ItemZone     @default(WARDROBE)
+  category    ItemCategory
+  name        String
+  brand       String?
+  color       String?
+  material    String?
+  sizeLabel   String?
+  priceCents  Int?
+  purchasedAt DateTime?
+  note        String?
+  coverKey    String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  images      WardrobeItemImage[]
+  tags        ItemTag[]
+  outfitItems OutfitItem[]
+  tryonItems  TryonRecordItem[]
+
+  @@index([userId, zone, category])
+  @@index([userId, name])
+  @@map("wardrobe_items")
+}
+
+model WardrobeItemImage {
+  id          String @id @default(cuid())
+  itemId      String
+  originalKey String?
+  whiteKey    String
+  sortOrder   Int    @default(0)
+
+  item WardrobeItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+  @@map("wardrobe_item_images")
+}
+
+// 标签库（按用户隔离，带使用计数用于自动补全排序）
+model Tag {
+  id       String @id @default(cuid())
+  userId   String
+  name     String
+  useCount Int    @default(0)
+
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items   ItemTag[]
+  outfits OutfitTag[]
+
+  @@unique([userId, name])
+  @@map("tags")
+}
+
+model ItemTag {
+  itemId String
+  tagId  String
+
+  item WardrobeItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  tag  Tag          @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([itemId, tagId])
+  @@map("item_tags")
+}
+
+model Outfit {
+  id         String   @id @default(cuid())
+  userId     String
+  name       String
+  occasion   String?
+  wornAt     DateTime?
+  note       String?
+  photoKey   String?
+  collageKey String?
+  canvas     Json?    // [{ itemId, imageKey, x, y, scale, rotation, zIndex }]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items OutfitItem[]
+  tags  OutfitTag[]
+
+  @@index([userId, createdAt])
+  @@map("outfits")
+}
+
+model OutfitItem {
+  outfitId  String
+  itemId    String
+  sortOrder Int    @default(0)
+
+  outfit Outfit       @relation(fields: [outfitId], references: [id], onDelete: Cascade)
+  item   WardrobeItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@id([outfitId, itemId])
+  @@map("outfit_items")
+}
+
+model OutfitTag {
+  outfitId String
+  tagId    String
+
+  outfit Outfit @relation(fields: [outfitId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([outfitId, tagId])
+  @@map("outfit_tags")
+}
+
+model TryonRecord {
+  id           String      @id @default(cuid())
+  userId       String
+  status       TryonStatus @default(PENDING)
+  mpsTaskId    String?
+  resultKey    String?
+  errorMessage String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  user  User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items TryonRecordItem[]
+
+  @@index([userId, createdAt])
+  @@map("tryon_records")
+}
+
+model TryonRecordItem {
+  recordId  String
+  itemId    String
+  sortOrder Int    @default(0)
+
+  record TryonRecord  @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  item   WardrobeItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@id([recordId, itemId])
+  @@map("tryon_record_items")
 }
