@@ -1,5 +1,5 @@
 import type { Prisma } from "@/generated/prisma/client";
-import { assistantRequirementsSchema, type AssistantRequirements } from "./assistant-requirements";
+import { assistantRequirementsSchema, hasNoStylePreference, type AssistantRequirements } from "./assistant-requirements";
 
 export const catalogProductSelect = {
   id: true, slug: true, name: true, description: true, priceCents: true,
@@ -130,6 +130,8 @@ export type NearestProduct<T> = {
   satisfied: string[];
   violations: { field: string; text: string }[];
   role: "over_budget" | "unverified" | "no_match" | "extra_requirement";
+  // 顾客说过「风格无所谓」时为 true：这些同类商品是可推荐的备选，不是「最接近」。
+  alternativesRecommended?: boolean;
 };
 
 export function toNearest<T extends { priceCents: number; name: string }>(
@@ -166,6 +168,8 @@ export async function nearestForCategory(
   const { styles, occasions: styleOccasions } = splitStyleAndOccasion(requirements.styleTags);
   const allOccasions = [...new Set([...styleOccasions, ...requirements.otherRequirements.filter((item) =>
     occasionWords.has(item.trim()))])];
+  // 顾客说「风格无所谓」：可核实条件下的其他在售同类就是备选替换，不再算「最接近」。
+  const noStylePreference = hasNoStylePreference(requirements.q);
   const orderBy: [{ priceCents: "asc" }, { id: "asc" }] = [{ priceCents: "asc" }, { id: "asc" }];
   const filtered = await reader.findMany({
     where: {
@@ -178,7 +182,10 @@ export async function nearestForCategory(
     select: catalogProductSelect, orderBy, take: limit,
   });
   if (filtered.length) {
-    return filtered.map((item) => toNearest(toCatalogProduct(item), checkedNames(styles, allOccasions), [], "extra_requirement"));
+    return filtered.map((item) => ({
+      ...toNearest(toCatalogProduct(item), checkedNames(styles, allOccasions), [], "extra_requirement"),
+      ...(noStylePreference ? { alternativesRecommended: true } : {}),
+    }));
   }
   const broad = await reader.findMany({
     where: { status: "ON_SALE", stock: { gt: 0 }, category: { slug: requirements.category } },
@@ -236,8 +243,12 @@ export async function queryCatalogProducts(
   }
   if (requirements.includeCurrentProduct === true) clarification.push("本次是另找单品，还是与指定商品一起购买");
   if (clarification.length) {
+    const noStylePreference = hasNoStylePreference(requirements.q);
     return { ...base, status: "needs_clarification", clarification: [...new Set(clarification)],
-      nextAction: "只澄清一项必要信息，保留其他要求，不指定顾客正在浏览的商品。" };
+      ...(noStylePreference ? { noStylePreference: true } : {}),
+      nextAction: noStylePreference
+        ? "只澄清一项列出的事实（品类或预算）；风格已被顾客明确说成无所谓，不得追问风格，也不得描述任何商品（本轮没有商品数据）。"
+        : "只澄清一项必要信息，保留其他要求，不指定顾客正在浏览的商品。" };
   }
 
   const excluded = new Set<string>();
@@ -348,10 +359,12 @@ export async function queryCatalogProducts(
   const products = candidates.filter((p) => requirements.budgetCents === null || p.priceCents <= requirements.budgetCents)
     .slice(0, limit).map(toCatalogProduct);
   if (products.length) {
+    const noStylePreference = hasNoStylePreference(requirements.q);
     // Give the model the remainder as data so it rewrites "还剩 XX 元" verbatim
     // instead of re-deriving (and paraphrasing) the subtraction itself.
     const budgetRemainderCents = requirements.budgetCents === null ? null : requirements.budgetCents - products[0].priceCents;
     return { ...base, checkedConstraints, status: "matched_known_constraints", products, budgetRemainderCents,
+      ...(noStylePreference ? { noStylePreference: true } : {}),
       nextAction: budgetRemainderCents === null
         ? "从products中推荐单品，报价和商品ID取真实字段；仅声称已核对条件匹配，不把查询结果当作页面上下文。"
         : "从products中推荐单品，报价和商品ID取真实字段，并按budgetRemainderCents用「预算还剩XX元」的句式说明剩余额度，不得改写为「还差」「还欠」等其他含义；仅声称已核对条件匹配，不把查询结果当作页面上下文。" };
@@ -395,12 +408,15 @@ export async function queryCatalogProducts(
     .sort((a, b) => score(a) - score(b) || a.priceCents - b.priceCents)
     .slice(0, limit)
     .map((item) => {
+      // 风格无所谓时，同类在售商品不是「最接近」，而是可推荐的备选替换。
+      const noStylePreference = hasNoStylePreference(requirements.q);
       const violations: { field: string; text: string }[] = [
         ...(familyTerms.length && !familyTerms.some((terms) => familyMatches(item, terms))
           ? [{ field: "keyword", text: "款式不对：不是顾客指定的那一类" }] : []),
         ...missingTagViolations(item, styles, allOccasions),
       ];
-      return toNearest(toCatalogProduct(item), checkedNames(styles, allOccasions), violations, "no_match");
+      return { ...toNearest(toCatalogProduct(item), checkedNames(styles, allOccasions), violations, "no_match"),
+        ...(noStylePreference ? { alternativesRecommended: true } : {}) };
     });
   return { ...base, checkedConstraints, status: "no_match_for_query", nearest,
     soldOut: soldOut.map(({ name, category }) => ({ name, category: category.name })),

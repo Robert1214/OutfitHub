@@ -1,4 +1,4 @@
-import { assistantRequirementsSchema, type AssistantRequirements } from "./assistant-requirements";
+import { assistantRequirementsSchema, hasNoStylePreference, type AssistantRequirements } from "./assistant-requirements";
 import {
   catalogProductSelect, categoryNames, keywordFilters, missingTagViolations, nearestForCategory, normalizeStyle,
   toCatalogProduct, type CatalogReader, type NearestProduct,
@@ -139,20 +139,25 @@ export async function queryAnchoredOutfits(
   const affordable = evaluated.filter(({ outfit }) => requirements.budgetCents === null || outfit.assessedPriceCents <= requirements.budgetCents)
     .slice(0, Math.max(1, Math.min(4, Math.trunc(requestedLimit) || 4)));
   // 与单品分支共用同一个「最接近商品」结构：violations 只写真实核对出的差异。
+  // 风格无所谓时，组合里缺少风格不算差异，只保留真实的预算/场合差异。
+  const compareStyles = hasNoStylePreference(requirements.q) ? [] : styles;
   const outfitNearest = (list: typeof evaluated, role: "over_budget" | "no_match") => list.map(({ product, outfit }) => ({
     product: toCatalogProduct(product),
+    ...(hasNoStylePreference(requirements.q) ? { alternativesRecommended: true } : {}),
     satisfied: ["店主确认的搭配关系", "候选在售且有库存"],
     violations: [
       ...(requirements.budgetCents !== null && outfit.assessedPriceCents > requirements.budgetCents
         ? [{ field: "budget", text: `组合超出预算 ¥${((outfit.assessedPriceCents - requirements.budgetCents) / 100).toFixed(2)}` }]
         : []),
-      ...missingTagViolations(product, styles, [...occasions]),
+      ...missingTagViolations(product, compareStyles, [...occasions]),
     ],
     role,
     outfit,
   }));
   if (affordable.length) {
+    const noStylePreference = hasNoStylePreference(requirements.q);
     return { ...base, status: "matched_known_constraints", products: affordable.map(({ product }) => toCatalogProduct(product)),
+      ...(noStylePreference ? { noStylePreference: true } : {}),
       outfits: affordable.map(({ outfit }) => outfit), purchaseBasis,
       reportedPriceCents: affordable[0].outfit.assessedPriceCents,
       nextAction: purchaseBasis === "both"

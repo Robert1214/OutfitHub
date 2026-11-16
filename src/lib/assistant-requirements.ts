@@ -30,3 +30,9 @@ export const assistantRequirementsSchema = z.object({
 );
 
 export type AssistantRequirements = z.infer<typeof assistantRequirementsSchema>;
+
+// 顾客自己说了「风格无所谓 / 随便 / 不挑」：本轮不再追问风格，按可核实条件出卡。
+// 「不想要休闲风」这类否定搭配不匹配，避免把「有特定要求」误判成「没有要求」。
+export function hasNoStylePreference(q: string): boolean {
+  return /(?:风格|款式|样式|版型)?(?:都|也)?(?:无所谓|随便|随意|不挑|不限)/u.test(q);
+}

@@ -4,7 +4,7 @@ import { prisma } from "../src/lib/db";
 import { GET } from "../src/app/api/assistant/products/route";
 import { GET as getCards } from "../src/app/api/products/route";
 import { queryCatalogProducts, type CatalogReader } from "../src/lib/assistant-catalog";
-import type { AssistantRequirements } from "../src/lib/assistant-requirements";
+import { hasNoStylePreference, type AssistantRequirements } from "../src/lib/assistant-requirements";
 
 // Read-only integration checks against the existing local demo catalog; no seed,
 // insert, update or deletion. Resolve identities from stored slugs, never invent IDs.
@@ -38,6 +38,32 @@ test("unknown category, unknown scope and conflicting exclusions ask before quer
     assert.deepEqual(result.products, []);
     assert.ok(result.clarification.length > 0);
   }
+});
+
+test("顾客说「风格无所谓」时不再追问风格，同类在售商品作为备选而不是「最接近」", async () => {
+  // 2026-11-16：风格要求只在顾客自己说无所谓/随便/不挑时才放弃；否定搭配不算。
+  for (const q of ["找件上衣，预算300，风格无所谓", "随便找条裤子", "裤子都行，不挑", "款式随意，预算300"]) {
+    assert.equal(hasNoStylePreference(q), true, q);
+  }
+  for (const q of ["找条极简裤子", "不想要休闲风", "不要花哨的款式", "风格要通勤"]) {
+    assert.equal(hasNoStylePreference(q), false, q);
+  }
+  // 缺品类时只澄清品类，并告诉模型别再问风格；缺数据时不描述商品。
+  const clarifying = await queryCatalogProducts({ ...demand, q: "随便找件衣服", category: "", requestedCategories: [], styleTags: [] }, neverRead);
+  assert.equal(clarifying.status, "needs_clarification");
+  assert.equal("noStylePreference" in clarifying && clarifying.noStylePreference, true);
+  assert.deepEqual(clarifying.products, []);
+  // 条件齐全但顾客说风格无所谓：给出售卡片（catalog-nearest），并标成备选替换而不是「最接近」。
+  const matched = await queryCatalogProducts({ ...demand, q: "找条裤子，预算400，风格无所谓", styleTags: [] }, prisma.product);
+  assert.ok(["matched_known_constraints", "no_match_for_query"].includes(matched.status));
+  if (matched.status === "no_match_for_query") {
+    assert.ok(matched.nearest.length > 0);
+    assert.ok(matched.nearest.some((item) => item.violations.length === 0));
+    assert.ok(matched.nearest.every((item) => item.alternativesRecommended === true));
+  }
+// 非下装搭配：没有风格差异时 nearest 里不应出现「风格不符」，而是备选。
+  const outfit = await queryCatalogProducts({ ...demand, q: "这条裙子配什么鞋，风格无所谓", category: "shoes", requestedCategories: ["shoes"], intent: "outfit", styleTags: [] }, prisma.product);
+  assert.ok(["unsupported_request", "needs_clarification", "matched_known_constraints"].includes(outfit.status));
 });
 
 test("unsupported tasks and unverified constraints cannot fall through to generic matches", async () => {
