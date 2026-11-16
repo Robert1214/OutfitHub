@@ -36,7 +36,7 @@
           }
         },
         {
-          "query": "那单件预算改成300元。",
+          "query": "那黑色高腰阔腿裤的单件预算改成300元。",
           "expected": {
             "status": "over_budget",
             "budgetCents": 30000,
@@ -48,11 +48,11 @@
             "minimumPriceCents": 35900,
             "overByCents": 5900,
             "maxQuestions": 1,
-            "productSlugs": []
+            "productSlugsOptional": true
           }
         },
         {
-          "query": "那单件预算改回400元。",
+          "query": "那黑色高腰阔腿裤的单件预算改回400元。",
           "expected": {
             "status": "matched_known_constraints",
             "budgetCents": 40000,
@@ -61,7 +61,7 @@
             "style": "极简",
             "excludeShoes": true,
             "noRedundantClarification": true,
-            "productSlugs": []
+            "productSlugsOptional": true
           }
         }
       ]
@@ -149,7 +149,7 @@
             "outfitTotalCents": 81800,
             "budgetRemainderCents": 8200,
             "noRedundantClarification": true,
-            "productSlugs": []
+            "productSlugsOptional": true
           }
         }
       ]
