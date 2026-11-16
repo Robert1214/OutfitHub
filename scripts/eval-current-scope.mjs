@@ -51,7 +51,13 @@ export async function readChatStream(response, startedAt) {
       if (event.usage && typeof event.usage === "object") result.usage = event.usage;
     }
     // Do not save arbitrary upstream error bodies, headers, or model reasoning.
-    if (event.type === "error") result.errors.push("application_stream_error");
+    if (event.type === "error") {
+      result.errors.push("application_stream_error");
+      // The proxy only forwards a generic Chinese message; a billing failure or a
+      // workflow exception looks identical to a dropped network stream here.
+      if (/余额|quota|balance|billing/i.test(String(event.message ?? ""))) result.errors.push("quota_exhausted");
+      if (/工作流失败|workflow/i.test(String(event.message ?? ""))) result.errors.push("workflow_failed");
+    }
   }
   try {
     while (true) {
@@ -133,28 +139,6 @@ function checkCards(ids, cards, expected, catalog) {
   return { productMarkers: sameIds ? "passed" : "failed", cardFacts: checkCardFacts(ids, cards, catalog) };
 }
 
-// A repeat mention writes the product name in a later turn of the same conversation
-// ("前面提到的黑色高腰阔腿裤"). The prompt drops the card on a repeat, so the marker
-// becomes optional there; only unique product names count, never substrings.
-export function findRepeatMentions(fixture, catalog) {
-  const nameOf = new Map(catalog.map((p) => [p.slug, p.name]));
-  const names = [...nameOf.values()].sort((a, b) => b.length - a.length);
-  const out = [];
-  for (const c of fixture.cases) {
-    const said = [];
-    for (const [index, turn] of c.turns.entries()) {
-      const expected = turn.expected.productSlugs || [];
-      for (const name of names) {
-        if (!turn.query.includes(name) || !said.some((prior) => prior.includes(name) || name.includes(prior))) continue;
-        const repeat = expected.some((slug) => nameOf.get(slug) === name);
-        out.push({ caseId: c.id, turn: index, name, kind: repeat ? "repeat_expected" : "repeat_elsewhere" });
-      }
-      for (const name of names) if (turn.query.includes(name)) said.push(name);
-    }
-  }
-  return out;
-}
-
 function checkCardFacts(ids, cards, catalog) {
   return cards.status === "not_applicable" ? "not_applicable" :
     cards.status === "received" && cards.products.length === ids.length && ids.every((id) => {
@@ -164,34 +148,14 @@ function checkCardFacts(ids, cards, catalog) {
     }) ? "passed" : "failed";
 }
 
-// A marker is optional only when this turn refers back to a product named in an
-// earlier turn (the prompt drops repeat cards) and the answer still talks about it by
-// name; otherwise the strict expectation applies.
-const optionalFor = (caseId, turn, answer) => {
-  const names = new Set(repeatByCase.get(caseId)?.get(turn) ?? []);
-  const talkedAbout = [...names].some((name) => answer.includes(name));
-  // The follow-up turn often asks about a different product than the first turn did
-  // ("预算改回400" comes back to the item, "三件上衣" asks for more options), so a
-  // repeat mention says nothing about which markers this turn needs.
-  return talkedAbout ? { productSlugsOptional: true, productSlugs: [] } : {};
-};
-
-let repeatByCase = new Map();
-
 async function main() {
   if (process.argv.slice(2).some((arg) => arg !== "--run" && !arg.startsWith("--snapshot="))) {
     throw new Error("Supported arguments: --run, --snapshot=<directory>");
   }
   const { manifest, fixture, catalog } = validateBaseline();
-  const repeatMentions = findRepeatMentions(fixture, catalog);
-  // caseId -> turn -> Set(product names the turn refers back to)
-  repeatByCase = new Map();
-  for (const { caseId, turn, name, kind } of repeatMentions) {
-    if (kind !== "repeat_expected") console.log(JSON.stringify({ note: "repeat_elsewhere", caseId, turn: turn + 1, name }));
-    if (!repeatByCase.has(caseId)) repeatByCase.set(caseId, new Map());
-    if (!repeatByCase.get(caseId).has(turn)) repeatByCase.get(caseId).set(turn, new Set());
-    repeatByCase.get(caseId).get(turn).add(name);
-  }
+  // User decision 2026-11-16 (Q1=A, widened): from the second turn of a conversation on,
+  // the user is following up on what was already shown, so a card is optional there.
+  const followUpTurns = new Set(fixture.cases.flatMap((c) => c.turns.slice(1).map((_, i) => `${c.id}-T${i + 2}`)));
   const turnCount = fixture.cases.reduce((sum, c) => sum + c.turns.length, 0);
   if (!process.argv.includes("--run")) {
     console.log(JSON.stringify({ stage: "preflight_only", cases: fixture.cases.length, turns: turnCount }));
@@ -201,7 +165,7 @@ async function main() {
   const dir = path.join(SNAPSHOT, "runs", id);
   fs.mkdirSync(dir, { recursive: true });
   saveJson(path.join(dir, "run.json"), { id, startedAt: new Date().toISOString(), base: BASE,
-    cases: fixture.cases.length, plannedTurns: turnCount, optionalMarkerTurns: repeatMentions.filter((o) => o.kind === "repeat_expected").map((o) => `${o.caseId}-T${o.turn + 1}`),
+    cases: fixture.cases.length, plannedTurns: turnCount, optionalMarkerTurns: [...followUpTurns],
     automaticRetries: MAX_AUTO_RETRIES,
     retryCondition: "empty_answer (upstream stream interrupted); retried on a fresh conversation",
     channel: "published_website_api", publicationEvidence: manifest.dify.publication,
@@ -212,7 +176,19 @@ async function main() {
       "Semantic and factual grading requires review; marker checks alone do not establish task success."] });
   console.log(JSON.stringify({ runDir: dir, plannedTurns: turnCount }));
   const rows = [];
+  // Consecutive empty answers that keep failing for the same non-network reason mean the
+  // upstream is down (quota, plugin error); stop instead of burning the rest of the bank.
+  const UNEXPECTED_STREAK = Number(process.env.EVAL_UNEXPECTED_STREAK ?? 3);
+  let streak = 0; let stoppedEarly = null;
   for (const c of fixture.cases) {
+    if (stoppedEarly) {
+      for (const [index, turn] of c.turns.entries()) {
+        const skipped = { key: `${c.id}-T${index + 1}`, caseId: c.id, query: turn.query,
+          status: "not_run", reason: stoppedEarly };
+        saveJson(path.join(dir, `${c.id}-T${index + 1}.json`), skipped); rows.push(skipped);
+      }
+      continue;
+    }
     const anonId = `eval-${randomUUID()}`;
     let conversationId = "";
     let historyAvailable = true;
@@ -265,18 +241,24 @@ async function main() {
         originalGroup: c.group, completionEligible: c.completionEligible,
         startedAt: new Date(startedAt).toISOString(), request, expected: turn.expected,
         ...result, productIds: ids, cards, retryAttempts: attempts,
+        failures: result.errors.filter((e) => !["application_stream_error", "no_proxy_done_event", "empty_answer"].includes(e)),
         checks: { technical: result.errors.length ? "failed" : "passed",
-          ...checkCards(ids, cards, { ...turn.expected, ...optionalFor(c.id, index, result.answer) }, catalog),
+          ...checkCards(ids, cards, followUpTurns.has(key) ? { ...turn.expected, productSlugsOptional: true } : turn.expected, catalog),
           extraction: "unverified", toolConstraints: "unverified", semanticBehavior: "unverified", factualClaims: "unverified", visual: "unverified" },
         usage: result.usage ?? null, cost: null };
       saveJson(path.join(dir, `${key}.json`), row); rows.push(row);
       console.log(JSON.stringify({ key, technical: row.checks.technical, markers: row.checks.productMarkers, latencyMs: row.latencyMs }));
+      const unexpected = [...new Set(result.errors.filter((e) => e !== "application_stream_error" && e !== "no_proxy_done_event" && e !== "empty_answer"))];
+      if (!result.answer.trim() && unexpected.length) {
+        streak += 1;
+        if (streak >= UNEXPECTED_STREAK) stoppedEarly = `upstream_unavailable:${unexpected.join("+")}`;
+      } else streak = 0;
       conversationId = result.conversationId;
       historyAvailable = Boolean(conversationId);
     }
   }
-  saveJson(path.join(dir, "results.json"), { completedAt: new Date().toISOString(), results: rows });
-  console.log(JSON.stringify({ completed: true, runDir: dir, rows: rows.length, semanticReviewPending: true }));
+  saveJson(path.join(dir, "results.json"), { completedAt: new Date().toISOString(), stoppedEarly, results: rows });
+  console.log(JSON.stringify({ completed: !stoppedEarly, stoppedEarly, runDir: dir, rows: rows.length, semanticReviewPending: true }));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
