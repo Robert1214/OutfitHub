@@ -75,6 +75,9 @@ test("商品标了「显瘦」就按标签算满足，只有体型等仍未核�
   const pants = result.nearest.find((item) => item.product.slug === "black-wide-leg-pants");
   assert.ok(pants, "black-wide-leg-pants should be the nearest item");
   assert.ok(pants.satisfied.some((text) => text.includes("显瘦")), JSON.stringify(pants.satisfied));
+  // 推荐理由要按商品描述给依据，但不许出现「标签」这种系统用语（用户 2026-11-16）。
+  assert.ok(pants.satisfied.some((text) => text.includes("宽松直筒")), JSON.stringify(pants.satisfied));
+  assert.ok(pants.satisfied.every((text) => !text.includes("标签")), JSON.stringify(pants.satisfied));
   assert.ok(!pants.violations.some((v) => v.text === "显瘦"));
   assert.ok(pants.violations.some((v) => v.field === "budget"));
 });
