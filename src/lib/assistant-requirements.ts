@@ -31,6 +31,13 @@ export const assistantRequirementsSchema = z.object({
 
 export type AssistantRequirements = z.infer<typeof assistantRequirementsSchema>;
 
+// 用户 2026-11-16：商品标签里明确标了「显瘦」时，「显瘦」算可核实条件（按标签核对），
+// 不放进「暂时无法核实」。只认标签原词，不从描述里推断。
+export function isTagVerifiable(requirement: string, tags: string[]): boolean {
+  const text = requirement.trim();
+  return text.length > 0 && tags.includes(text);
+}
+
 // 顾客自己说了「风格无所谓 / 随便 / 不挑」：本轮不再追问风格，按可核实条件出卡。
 // 「不想要休闲风」这类否定搭配不匹配，避免把「有特定要求」误判成「没有要求」。
 export function hasNoStylePreference(q: string): boolean {

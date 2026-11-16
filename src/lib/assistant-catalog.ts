@@ -1,5 +1,5 @@
 import type { Prisma } from "@/generated/prisma/client";
-import { assistantRequirementsSchema, hasNoStylePreference, type AssistantRequirements } from "./assistant-requirements";
+import { assistantRequirementsSchema, hasNoStylePreference, isTagVerifiable, type AssistantRequirements } from "./assistant-requirements";
 
 export const catalogProductSelect = {
   id: true, slug: true, name: true, description: true, priceCents: true,
@@ -147,12 +147,22 @@ function checkedNames(styles: string[], occasions: string[]): string[] {
 }
 
 // 商品缺少顾客明确要求的风格/场合标签时，逐条写成 violation；三处调用方共用。
+// 用户 2026-11-16：这类偏好只要商品标签里标了就算满足（如「显瘦」）。
+export const tagPreferences = new Set(["显瘦", "显高", "遮肉", "修饰腿型"]);
+
 export function missingTagViolations(
   item: { styleTags: string[]; occasionTags: string[] }, styles: string[], occasions: string[],
 ): { field: string; text: string }[] {
   const violations: { field: string; text: string }[] = [];
-  const missingStyles = styles.filter((style) => !item.styleTags.includes(style));
+  // 「显瘦」等在常见中文里是风格词，抽取器会放进 styleTags，但商品本身没有风格标签，
+  // 所以按「风格不符」处理，不称为暂时无法核实。
+  const preferenceStyles = styles.filter((style) => tagPreferences.has(style));
+  const missingStyles = styles.filter((style) => !preferenceStyles.includes(style) && !item.styleTags.includes(style));
   if (missingStyles.length) violations.push({ field: "style", text: `风格不符：缺少「${missingStyles.join("、")}」` });
+  if (preferenceStyles.length) {
+    const missingPreferences = preferenceStyles.filter((style) => !item.styleTags.includes(style));
+    if (missingPreferences.length) violations.push({ field: "style", text: `没有标注「${missingPreferences.join("、")}」` });
+  }
   const missingOccasions = occasions.filter((occasion) => !item.occasionTags.includes(occasion));
   if (missingOccasions.length) violations.push({ field: "occasion", text: `场合不符：不是「${missingOccasions.join("、")}」` });
   return violations;
@@ -307,19 +317,26 @@ export async function queryCatalogProducts(
     const minimumPriceCents = sameFamily.length ? sameFamily[0].priceCents : null;
     const overByCents = budget !== null && minimumPriceCents !== null && minimumPriceCents > budget
       ? minimumPriceCents - budget : null;
+    // 显瘦等偏好只要商品标签里写着，就算已核实（用户 2026-11-16 决定），不再列为「暂时无法核实」。
+    const tagOk = (item: { tags: string[]; styleTags: string[] }, text: string) =>
+      isTagVerifiable(text, [...item.tags, ...item.styleTags]);
+    const stillUnresolved = unresolved.filter((text) => !trimmed.some((item) => tagOk(item, text)));
     const nearest = trimmed.map((item) => {
       const violations: { field: string; text: string }[] = [
-        ...unresolved.map((text) => ({ field: "unverified", text })),
+        ...stillUnresolved.map((text) => ({ field: "unverified", text })),
         ...(budget !== null && item.priceCents > budget
           ? [{ field: "budget", text: budgetViolationText(item.priceCents - budget) }] : []),
       ];
-      return toNearest(toCatalogProduct(item), checkedNames(nearStyles, nearOccasions), violations, "unverified");
+      const tagChecked = unresolved.filter((text) => tagOk(item, text));
+      return toNearest(toCatalogProduct(item),
+        [...checkedNames(nearStyles, nearOccasions), ...tagChecked.map((text) => `标签：${text}`)],
+        violations, "unverified");
     });
-    return { ...base, status: "needs_verification", unresolvedRequirements: unresolved,
+    return { ...base, status: "needs_verification", unresolvedRequirements: stillUnresolved,
       nearest,
       budgetAssessment: (budget === null || overByCents === null) ? null
         : { minimumPriceCents: minimumPriceCents!, budgetCents: budget, overByCents },
-      nextAction: `按【收尾规则·唯一版本】处理nearest；unresolvedRequirements逐条说成「暂时无法核实」，不得说成已满足。${base.soldOut.length ? "先如实说明soldOut里这些款式店里有但已售罄（不得说成没有这款）。" : ""}` };
+      nextAction: `按【收尾规则·唯一版本】处理nearest；unresolvedRequirements逐条说成「暂时无法核实」，不得说成已满足；nearest[i].satisfied里「标签：XX」是商家标了该特性的商品，可以如实说「商品标了XX」。${base.soldOut.length ? "先如实说明soldOut里这些款式店里有但已售罄（不得说成没有这款）。" : ""}` };
   }
 
   const { styles, occasions: styleOccasions } = splitStyleAndOccasion(requirements.styleTags);

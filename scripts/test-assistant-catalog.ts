@@ -66,6 +66,19 @@ test("顾客说「风格无所谓」时不再追问风格，同类在售商品�
   assert.ok(["unsupported_request", "needs_clarification", "matched_known_constraints"].includes(outfit.status));
 });
 
+test("商品标了「显瘦」就按标签算满足，只有体型等仍未核实", async () => {
+  // 2026-11-16 用户决定：「显瘦」等在商品标签里标了就算可核实。
+  const result = await queryCatalogProducts({ ...demand, q: "显瘦裤子", styleTags: [], budgetCents: 30000,
+    otherRequirements: ["显瘦", "梨形身材", "160斤"] }, prisma.product);
+  assert.equal(result.status, "needs_verification");
+  assert.deepEqual(result.unresolvedRequirements, ["梨形身材", "160斤"]);
+  const pants = result.nearest.find((item) => item.product.slug === "black-wide-leg-pants");
+  assert.ok(pants, "black-wide-leg-pants should be the nearest item");
+  assert.ok(pants.satisfied.some((text) => text.includes("显瘦")), JSON.stringify(pants.satisfied));
+  assert.ok(!pants.violations.some((v) => v.text === "显瘦"));
+  assert.ok(pants.violations.some((v) => v.field === "budget"));
+});
+
 test("unsupported tasks and unverified constraints cannot fall through to generic matches", async () => {
   for (const intent of ["similar", "product_info", "color_advice", "unknown"] as const) {
     const result = await queryCatalogProducts({ ...demand, intent }, neverRead);
