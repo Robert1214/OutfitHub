@@ -51,7 +51,10 @@ test("live approved pair sums both prices with exact boundary and renewed budget
       assert.equal(result.products.some(p => p.id === a.id), false);
     } else {
       // D01-1: over-budget still shows the nearest reviewed pair, named and carded.
-      assert.deepEqual(result.products.map(p => p.id), [p.id]);
+      // 2026-11-16：非 matched 状态统一放 nearest（products 为空），回答节点按同一条收尾规则处理。
+      assert.deepEqual(result.products, []);
+      assert.deepEqual(result.nearest.map(n => n.product.id), [p.id]);
+      assert.deepEqual(result.nearest[0].violations.map(v => v.field), ["budget"]);
       assert.equal(result.outfits[0].candidateProductName, p.name);
       assert.equal(result.outfits[0].assessedPriceCents, total);
       assert.equal(result.budgetAssessment?.minimumPriceCents, total);

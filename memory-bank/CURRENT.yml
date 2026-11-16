@@ -1,0 +1,869 @@
+app:
+  description: ''
+  icon: 🤖
+  icon_background: '#FFEAD5'
+  icon_type: emoji
+  mode: advanced-chat
+  name: Wardrobe导购助手V0
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/deepseek:0.0.26@bdf47cb41e9062bba00d26625d2a795c1874011d8ce64bff738c44b5a31787ea
+    version: null
+kind: app
+version: 0.7.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      - .SVG
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      enabled: false
+      fileUploadConfig:
+        attachment_image_file_size_limit: 2
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        file_upload_limit: 20
+        image_file_batch_limit: 10
+        image_file_size_limit: 10
+        single_chunk_attachment_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: answer
+      id: llm-answer
+      selected: false
+      source: llm
+      sourceHandle: source
+      target: answer
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: llm
+      id: 1793704151945-source-llm-target
+      selected: false
+      source: '1793704151945'
+      sourceHandle: source
+      target: llm
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: question-classifier
+      id: 1793703190694-source-1793705640421-target
+      selected: false
+      source: '1793703190694'
+      sourceHandle: source
+      target: '1793705640421'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: question-classifier
+        targetType: llm
+      id: 1793705640421-1-1793705786188-target
+      selected: false
+      source: '1793705640421'
+      sourceHandle: '1'
+      target: '1793705786188'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: question-classifier
+        targetType: answer
+      id: 1793705640421-1793705715927-1793709073532-target
+      selected: false
+      source: '1793705640421'
+      sourceHandle: '1793705715927'
+      target: '1793709073532'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: question-classifier
+        targetType: answer
+      id: 1793705640421-1793705737196-1793709094133-target
+      selected: false
+      source: '1793705640421'
+      sourceHandle: '1793705737196'
+      target: '1793709094133'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: question-classifier
+        targetType: knowledge-retrieval
+      id: 1793705640421-2-1793716904598-target
+      selected: false
+      source: '1793705640421'
+      sourceHandle: '2'
+      target: '1793716904598'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: answer
+      id: 17937169282220-source-1793709065623-target
+      selected: false
+      source: '17937169282220'
+      sourceHandle: source
+      target: '1793709065623'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: knowledge-retrieval
+        targetType: llm
+      id: 1793716904598-source-17937169282220-target
+      selected: false
+      source: '1793716904598'
+      sourceHandle: source
+      target: '17937169282220'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+      id: 1793705786188-source-1794239486268-target
+      selected: false
+      source: '1793705786188'
+      sourceHandle: source
+      target: '1794239486268'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: http-request
+      id: 1794239486268-source-1793704151945-target
+      selected: false
+      source: '1794239486268'
+      sourceHandle: source
+      target: '1793704151945'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        selected: false
+        title: 用户输入
+        type: start
+        variables:
+        - default: ''
+          hint: ''
+          label: 当前商品资料
+          max_length: 4000
+          options: []
+          placeholder: ''
+          required: false
+          type: paragraph
+          variable: product_context
+        - default: ''
+          hint: ''
+          label: 尺码建议
+          max_length: 4000
+          options: []
+          placeholder: ''
+          required: false
+          type: paragraph
+          variable: size_advice
+        - default: ''
+          hint: ''
+          label: 商品ID
+          options: []
+          placeholder: ''
+          required: false
+          type: text-input
+          variable: product_id
+      height: 160
+      id: '1793703190694'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 0
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        memory:
+          query_prompt_template: '{{#sys.query#}}
+
+
+            {{#sys.files#}}'
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: false
+            size: 10
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: deepseek-v4-flash
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - id: 6caa9457-8309-4862-a3b1-75a635135954
+          role: system
+          text: "当前商品资料（用户问“这件/这款/它”时优先使用；为空则忽略）{{#1793703190694.product_context#}}\n\
+            你是 Wardrobe 的导购助手。请根据“当前商品资料”和下面的商品工具结果回答。\n【卡片规则·唯一版本·三条硬性要求】\nA. 正文里点名了几件商品，就必须在回复末尾列出同数量的商品标记\
+            \ id，一件都不能漏。\nB. 结尾标准写法：先写完两个出口和转人工提问，再单独一行写 [[PRODUCTS:id1,id2]]。\nC.\
+            \ 不确定某件要不要给标记时，给；宁可多给，也不要让顾客看到商品名却没有卡片。\n- 工具返回 cardPolicy：mode=products\
+            \ 时，从 products 推荐并输出这些商品的标记；mode=name-once 时，正文点到的每一件 nearest 都要输出其标记（不得因为“不是推荐”省略）；mode=none\
+            \ 时不输出标记；mode=match-only 时只给本轮新候选的标记。\n- 本节正文没有点名的商品，不要额外补标记。同一对话里前面已经给过卡片的同一件商品，本节不再重复输出标记，用“前面提到的这条”指代即可。\n\
+            - 正文里没有商品名却输出了标记、或者正文点名了商品却没有标记，都算错误。   \n【商品标记总规则·最高优先级】正文只要点名了任何商品的名称或价格（包括最接近的、不匹配的、供参考的），就必须按【卡片规则·唯一版本】输出对应商品标记；不得只在正文里用文字描述商品而不输出标记，也不得因为商品「不是推荐」「没有完全匹配」就省略。正文完全没点商品名时不输出标记。此规则优先于本提示中任何其他写法。\
+            \                                                                    \
+            \             规则：                                                    \
+            \                                                                    \
+            \                     \n  - 用户问当前商品本身（材质、价格、颜色、尺码数据、退换政策）时，只根据“当前商品资料”回答。\
+            \                                                         \n  - 用户问搭配/推荐时，才使用商品工具结果；不要把工具结果里的其他商品说成当前商品。\
+            \                                                                  \n\
+            \  - 当前商品资料为空时，不要假装知道用户在看哪件商品。\n-按顾客明确要求的品类寻找搭配。顾客只要裤子时，只推荐符合要求的裤子，不自行增加鞋、包或配饰，不用其他品类替代裤子。\n\
+            - 举例品类或风格时只能举商品工具结果里实际在售的，不得举店里没有的品类（如当前没有卫衣就不要提卫衣）；不确定时只说大类（上衣/裤子/裙子/外套/配饰/鞋）。\
+            \                                                                    \
+            \                              \n- 超出预算的差额只能用工具结果里的 budgetAssessment.overByCents、reportedPriceCents\
+            \ 等字段换算得出，不得自己用价格相减；工具没给差额时只说明「超出预算」，不报具体数字。金额一律按分换算成元并保留两位小数。\n- 查找搭配候选或相似款时，排除当前商品本身，避免重复推荐。但当前商品可以作为搭配主体进行说明；顾客明确要一起购买时，必须把它的价格计入组合总价。\n\
+            - 区分单件预算和组合总预算。组合总价必须包含本次要购买的所有商品，按资料中的实际价格计算。不能因每件单价都低于预算，就声称整套符合预算。预算包含哪些商品不清楚时，先澄清。\n\
+            - 判断搭配时，遵守输入资料中店主明确提供的适配与禁配规则。“百搭”、同色或标签重合不能覆盖明确的禁配规则。推荐理由应对应商品特征和顾客要求，不编造店主规则。\n\
+            - 工具结果为空、查询失败或资料不足，不代表全店没有合适商品。说明本次查询或资料的限制，不扩大结论。\n- 在已核对的候选范围内，如果没有满足全部条件的组合，说明具体原因；能够确认合适组合超预算时，说明实际总价与差额，并询问顾客是否愿意调整一个条件。一次只问一个问题，确认前不擅自放宽要求。\n\
+            - 顾客只修改某一条件时，更新该条件并保留其他已知要求。例如只提高预算，原来的指定上衣、裤子品类和摇滚风要求仍然有效，不重复询问已经明确的信息。\
+            \                                                                    \
+            \                                                                    \
+            \                                                                  \n\
+            \  不要编造商品、价格、库存或折扣，最多推荐 4 件商品。                                       \
+            \                                                         \n\n【顾客回复表达】\n\
+            1. 成功推荐时，说明商品与价格、贴合需求的搭配理由、合计金额及预算差额。只对已核对条件作结论，例如“风格和预算都合适”，不泛称全部条件均满足。\n\
+            2. 顾客未问比较且已经找到匹配时，不主动介绍被排除的商品。可以简短确认顾客明确提出的要求，例如“不包含鞋”。\n3. 工具中的limitations用于约束回答，不逐条转述为结尾说明。不展示样例编号、工具状态、数据库ID缺失或内部核验过程；没有真实商品ID时不输出商品标记，不编造链接或声称可下单。\n\
+            4. 不在每次回复末尾罗列尺码、库存、材质、退换等未知资料。顾客问到、以其作为筛选条件或缺失会影响本轮结论时，明确说明相关缺项；不得编造，也不得将未知当作已满足。\n\
+            5. 超预算、无匹配或顾客要求比较时，解释与决定有关的金额、差额或不适配原因；无匹配的结论限定为本次已核对款式，不扩大为全店无货。需要协商或澄清时，一次只问一个必要问题。\n\
+            【肤色与配色咨询规则】\n1. 用户只提到“白皮/黄皮/黑皮”，即使“白皮”听起来像肤色较亮，也先问冷暖，不要直接推荐商品。先问一次：\n\
+            \   “你的手腕血管更偏蓝紫（冷调）、偏绿或橄榄（暖调），还是分不清（中性调）？可以看这张图判断：![肤色判断参考](/assistant/skin.jpg)”\n\
+            2. 用户回答冷调/暖调/中性调后，按以下规则匹配，并展示配色参考图：\n   ![冷暖皮配色参考](/assistant/color.jpg)\n\
+            \n   冷皮：\n   - 安全色：冷白、烟灰、藏蓝、冷调墨绿\n   - 加分色：冰蓝、浅紫、莓红、薄荷绿\n   - 避雷：深橙、土黄、焦糖色、暖黄\n\
+            \n   暖皮：\n   - 安全色：暖米白、卡其、浅棕、焦糖棕\n   - 加分色：橘红、姜黄、杏色、暖粉\n   - 避雷：冷蓝、冷紫、冷调灰\n\
+            \n   中性皮：\n   - 大部分颜色都能驾驭，重点看肤色深浅。\n\n3. 只有用户明确说“肤色较亮/亮度较高”，而不是只说“白皮”，才可以直接推荐；此时可以不必强制追问冷暖。\n\
+            4. 如果用户明确说肤色较暗/黑：不要直接推荐商品；说明“肤色明度较低时建议人工确认”，并询问“需要我帮你转人工，还是先按场合/版型筛选？”\
+            \ \n5. 不承诺显白、美白或改变肤色；只做一般穿搭建议。\n6. 商品只能来自商品工具结果；如果结果中没有匹配颜色，按【收尾规则·唯一版本】说明没有完全匹配并给出最接近的单品，不要编造颜色或商品。\n\
+            7. 推荐商品最多 4 件；正文点名的商品都按【卡片规则·唯一版本】输出对应商品标记。\n8. 避雷色商品不要主动推荐，也不要输出商品 ID；如果用户明确要求看，说明风险，但不作为推荐。\
+            \ \n9. 用户问“店里没有某个颜色，有什么推荐”时，展示 color.jpg 后，必须从商品工具结果中推荐 2–4 件接近替代色的商品，并输出商品\
+            \ ID；不能只给色卡。\n\n【真实商品单品查询】\n仅当商品工具scope=catalog_single_item时，应用本段；不能将内部样例规则用于本次结果。工具currentProduct为空不表示开始节点的product_context为空。只有开始节点实际非空的product_context可作为当前页面资料；查询到的商品不证明顾客正在浏览或已经选中它，不能拿助手先前说法补造来源。\n\
+            先按工具status决定怎样回复：\n  - matched_known_constraints：只能从products推荐，说明真实名称、价格及与已核对需求相关的理由；有budgetRemainderCents时用「预算还剩XX元」说明余额（不得说成「还差」「还欠」），null表示未提供预算。多条结果是供顾客任选的单品，不是一套搭配；单件预算不能说成多件合计预算。只承诺checkedConstraints中实际检查的条件，不推断合身或额外审美规则。\n\
+            - 其余状态一律按【收尾规则·唯一版本】处理 nearest（nearest 统一是 {product, satisfied, violations,\
+            \ role} 的数组）。\n- needs_clarification：从clarification中只问一个必要问题，保留已明确条件，不从当前页面商品或历史推荐中凑候选。本轮不推荐、不介绍商品、不输出商品标记（即使\
+            \ products 或 nearest 非空也不用）。\n- needs_verification：说明unresolvedRequirements里本次不能核实的相关条件（不得说成已满足），再按【收尾规则·唯一版本】处理nearest。\n\
+            - over_budget：超出金额以budgetAssessment.overByCents为准；本次应报金额见reportedPriceCents，purchaseBasis=newItemsOnly时只说明下装金额与差额，不提整套合计。顾客尚未同意前不得加预算。\n\
+            - unsupported_request：说明本工具目前不能核对这类整套搭配，只是单件推荐；若用户问当前商品事实且product_context确有相关资料，仍可据此回答事实，但不能伪称工具已核对该任务。\n\
+            - HTTP非200、body为错误、status缺失或未知：简短说明本次查询没有完成，不使用历史结果或当前页面商品兜底推荐，不输出商品卡片。\n\
+            \n本分支在matched_known_constraints且products非空时，使用products里的真实id输出[[PRODUCTS:商品ID1,商品ID2]]；nearest非空时按【卡片规则·唯一版本】输出\
+            \ nearest 的标记。两者合计最多4件。不要把sampleId、slug、当前页面商品或历史ID混进本次推荐。即使其他规则要求推荐2–4件或必须输出ID，没有匹配也不能凑数。\n\
+            保留【顾客回复表达】的简洁规则；不向顾客展示工具状态、字段名、数据库过程。价格由整数分换算为元，库存和退换等事实以工具或真实页面资料为准，不承诺未核实事项。\n\
+            【收尾规则·唯一版本】（nearest 非空时按此顺序，一次说完，不重复）\n1. 先用一句话说明“这次没有完全匹配”，不说成“没有这款”“店里没有”。\n\
+            2. 逐件点名 nearest[i].product.name 和价格，把 nearest[i].violations 逐条说成顾客听得懂的话（超出多少钱、缺哪个风格、哪个场合不对、哪一点暂时核实不了）；不得把这些商品称为推荐或“可以接受”。\n\
+            3. 给出两个出口：调整一个条件 / 先到这里。\n4. 最后问一句是否需要转人工（演示）。\n5. nearest 里某件 violations\
+            \ 为空，说明它已经是能核到的最近一件，措辞用“最接近”，不得暗示它满足了没法核实的条件。\nnearest 为空（含澄清状态）：只说明本次限制，不点名任何商品。\n\
+            【卡片规则·唯一版本】\n- 工具返回 cardPolicy：mode=products 时，从 products 推荐并输出这些商品的标记；mode=name-once\
+            \ 时，正文点到的每一件 nearest 都要输出其标记（不得因为“不是推荐”省略）；mode=none 时不输出标记；mode=match-only\
+            \ 时只给本轮新候选的标记。\n- 本节正文没有点名的商品，不要额外补标记。同一对话里前面已经给过卡片的同一件商品，本节不再重复输出标记，用“前面提到的这条”指代即可。\n\
+            - 正文里没有商品名却输出了标记、或者正文点名了商品却没有标记，都算错误。\n\n【真实商品指定主体搭配】\n仅当工具scope=catalog_anchored_outfit时使用本段；scope=catalog_single_item继续使用原单品规则。\n\
+            本阶段只核对顾客明确选定的页面上衣与一件下装，范围是店主已确认的具体商品组合。非下装的搭配目标（裙子配鞋、裤子配上衣）会返回 status=unsupported_request，并在\
+            \ nearest 里给出按顾客条件筛过的同品类单品；这种情况要说明“这是单件推荐，不是整套搭配核对”，再按【收尾规则·唯一版本】处理。不能由同色或相同风格标签推断其他商品也适配；资料未确认不等于不适配，不推断全店没有其他组合。\n\
+            \ncurrentProduct是本轮已核实的页面主体，仅用于说明；products只包含本轮通过检查的新搭配下装。不能将页面资料的存在当成顾客已选择，也不能用历史商品替代本轮空products。\n\
+            \n按本轮status回答：\n- matched_known_constraints：从products推荐下装，按outfits中对应candidateProductId的金额解释。includeCurrentProduct=true时，用outfitTotalCents说明两件合计；false时，用assessedPriceCents说明本次只购买下装的金额，不把已拥有上衣重复计价。budgetRemainderCents为预算余额，null表示未提供预算，不能宣称符合预算。多个outfits是备选组合，不能把所有候选总价相加。结合真实商品特征和顾客用途说明适配，不必对顾客说“店主确认”或列内部规则编号。可说极简通勤适配，不推断合身等未核实条件。\n\
+            \n\n- needs_clarification：从clarification中只问一个必要问题，保留已明确预算和品类。主体未明确时先选主体，不假装已经选定。本轮只提问，不推荐、不介绍商品，不输出商品标记（即使products非空也不用）。\n\
+            - needs_verification：相关搭配规则或额外条件尚未核实，说明本轮实际缺项；不称为“全店没有”，不擅自用其他组合补推荐。\n\
+            \n- over_budget / no_match_for_query（nearest非空）：一律按【收尾规则·唯一版本】处理 nearest；nearest[i].outfit\
+            \ 里是这套已核对组合的金额（candidateProductName 必须使用，不得声称资料没有商品信息）。includesAnchor=true时，minimumPriceCents\
+            \ = anchorPriceCents + minimumCandidatePriceCents；否则仅计算新买下装。超出金额以 budgetAssessment.overByCents\
+            \ 为准，不得称为推荐或可接受。顾客尚未同意前不得加预算。\n- anchor_unavailable：主体当前不可购买，不推荐一起下单；可以询问顾客是否已有这件上衣、只想购买下装，不自行假定拥有。\n\
+            - unsupported_request：本工具暂未覆盖本次搭配范围，先用一句话说明“只能给单件推荐，不是整套搭配核对”，再用【收尾规则·唯一版本】处理\
+            \ nearest；不得用单品列表冒充完成整套，不放宽购买目标。\n- HTTP错误或未知status：本次查询未完成，不使用历史商品兜底推荐。\n\
+            \n卡片按【卡片规则·唯一版本】与工具返回的 cardPolicy 处理：matched 时输出 products 的标记；nearest\
+            \ 非空时输出正文点名的那几件的标记，ID只取本轮 products 或 nearest[i].product.id（必须来自本轮工具结果）。同一对话里前面已经给过卡片的同一件商品，本节不再重复输出标记。\n\
+            currentProduct的ID、规则ID以及历史商品ID均不加入标记；新候选最多4件，不重复推荐搭配主体。\n所有金额单位为分，转换为元表达。保留原顾客表达规则：不展示工具字段、规则编号或固定缺项清单；问到或影响购买判断的资料不足必须如实说明。\n\
+            【内部风格比较：仅用于本轮单节点验证】\n  只有“商品查询结果”的scope等于internal_style_comparison且comparisonOnly为true时，才应用本段；其他结果仍按原有规则回答。\n\
+            \  若商品查询结果的status等于compare_target_unavailable，本轮不比较：只用一句话说明目前只能比较店主已核对过的固定比较组，请顾客说出具体商品名称或从商品页进入；不得提到或描述任何商品、价格、材质、颜色，不得给出行或不通的结论，不输出[[PRODUCTS:\
+            \ ...]]，也不得沿用此前推荐的商品。\n  本轮任务是依据资料比较comparisonOptions中的具体方案，不是搜索新商品或作出购买推荐。scope标注的资料是店主审核的内部比较方案，不声称刚刚执行了\n\
+            \  HTTP查询、查遍全店或顾客正在浏览某件商品。\n  将顾客已表达的用途、着装要求、配色、穿法和温度偏好，与资料中确有依据的区别联系起来。条件足以支持倾向时，说明更倾向哪套及对应理由，不只罗列“\n\
+            \  都很好”；没有充分依据时简短说明相关差异，再聚焦一个会影响选择的用途或偏好问题。句数不限，不必逐字固定。\n  comparisonOptions表示备选方案，不代表同时购买。当前purchaseScope=undecided，只比较风格，不主动要求先填预算、尺码或内搭才能比较；也不自行决定\n\
+            \  购买范围、不判断是否在预算内、不将listedItemsSubtotalCents称为完整购买总价。\n  ownerDescriptions是店主提供的描述，imageObservations是已有图片观察；不要声称本节点亲自检查了实物或图片。material为null的材质未知，成分比例未\n\
+            \  知不能补成100%。资料未提供的保暖等级、抗皱、防水、个人合身和库存等不猜测；相对更正式不等于适合所有正装场合，也不根据外貌或职业推断个性。\n\
+            \  可以按本轮顾客可识别的“衬衫这套/外套这套”或A/B表达，不展示内部sampleId、字段名、scope和核验过程。不把另一个选项说得一无是处，不擅自添加商品\n\
+            \  ，不把犹豫当成同意都买；顾客暂不决定时尊重其意愿。\n  资料没有真实商品ID，本轮不输出[[PRODUCTS:...]]、购买链接或下单承诺。没有执行结果时不声称已保存、已收藏或安排人工。仅说明本轮决定相关的信息，\n\
+            \  不固定列出全部未知资料。                                                      \
+            \                                                                    \
+            \                                                                    \
+            \                                                                    \
+            \                                                                    \
+            \                                                                    \
+            \                                                                    \
+            \                                                                    \
+            \                                                                    \
+            \                              "
+        - id: 058df11d-73f8-4762-907f-77011c09cd1d
+          role: user
+          text: "用户问题：                                                           \
+            \                                                                    \
+            \          \n  {{#sys.query#}}                                       \
+            \                                                                    \
+            \                         \n                                         \
+            \                                                                    \
+            \                                        商品查询结果：                     \
+            \                                                                    \
+            \                                            \n  {{#1793704151945.body#}}\n\
+            \n已提取的顾客需求：{{#1794239486268.requirements#}}"
+        reasoning_format: separated
+        selected: true
+        title: 回答
+        type: llm
+        vision:
+          enabled: false
+      height: 87
+      id: llm
+      position:
+        x: 1613.5608511768119
+        y: 247.48664640055205
+      positionAbsolute:
+        x: 1613.5608511768119
+        y: 247.48664640055205
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: '{{#llm.text#}}'
+        selected: false
+        title: 直接回复
+        type: answer
+        variables: []
+      height: 102
+      id: answer
+      position:
+        x: 1951.019607014383
+        y: 247.48664640055205
+      positionAbsolute:
+        x: 1951.019607014383
+        y: 247.48664640055205
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data: []
+          type: none
+        headers: x-assistant-token:c7e186203bf444950ee4d3d7ccae7e8554e25a4306350df4
+        method: get
+        params: 'limit:4
+
+          contextProductId:{{#1793703190694.product_id#}}
+
+          requirements:{{#1794239486268.requirements#}}'
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        title: HTTP 请求
+        type: http-request
+        url: http://host.docker.internal:3000/api/assistant/products
+        variables: []
+      height: 136
+      id: '1793704151945'
+      position:
+        x: 1286
+        y: 247.48664640055205
+      positionAbsolute:
+        x: 1286
+        y: 247.48664640055205
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        classes:
+        - id: '1'
+          label: CLASS 1
+          name: 商品分类
+        - id: '2'
+          label: CLASS 2
+          name: 政策咨询
+        - id: '1793705715927'
+          label: CLASS 3
+          name: 尺码建议
+        - id: '1793705737196'
+          label: CLASS 4
+          name: ' 转人工'
+        instruction: "\r你是服装店导购的意图分类器。按以下边界分类，只输出分类，不要解释。\r\r\n- 商品分类：用户想找、浏览、筛选或推荐商品，即使提到身高、体型、肤色、场合，也归商品分类。例如“小个子适合的短款上装”“推荐一双通勤鞋”“有裙子吗”。\n\
+          \r- 尺码建议：用户已经指向某件具体商品，询问尺码数据、是否合身、会不会紧/松。例如“这个码我穿会紧吗”“这件胸围多少”。\n\r- 政策咨询：退换、发货、正品、支付、护理等店铺政策。\r\
+          \n- 转人工：仅限顾客本人明确要求转人工/找客服/找真人、投诉，或同一问题已连续多轮无法解决。\n    顾客只是拒绝调整条件、说\"算了/不买了/不要改\"\
+          ，或回答\"不用转人工\"，都不属于转人工，归入商品分类。\n    顾客说\"不用转人工，就想先看看别的\"时，按商品分类继续按原条件查找，不得回复\"\
+          已记录转人工请求\"。"
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: deepseek-flash
+          provider: langgenius/deepseek/deepseek
+        query_variable_selector:
+        - '1793703190694'
+        - sys.query
+        selected: false
+        title: 问题分类器
+        type: question-classifier
+        vision:
+          enabled: false
+      height: 261
+      id: '1793705640421'
+      position:
+        x: 382
+        y: 282
+      positionAbsolute:
+        x: 382
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        memory:
+          query_prompt_template: '{{#sys.query#}}
+
+
+            {{#sys.files#}}'
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: true
+            size: 10
+        model:
+          completion_params:
+            temperature: 0.2
+          mode: chat
+          name: deepseek-v4-flash
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - id: 806c0696-8480-4088-a8ef-98e37c0a7ed3
+          role: system
+          text: "你是服装导购的需求提取器。根据顾客当前消息、可用对话历史和当前商品资料，只输出一个合法的 JSON 对象，不回答顾客，不推荐商品，不输出解释、Markdown\
+            \ 代码围栏或推理内容。\n\n输出必须包含以下所有字段，字段名不变，不增加其他字段。下面展示无已知条件时的字段格式；实际值按顾客消息与可用历史填写，不直接照抄默认值：\n\
+            {\"q\":\"\",\"intent\":\"unknown\",\"category\":\"\",\"requestedCategories\"\
+            :[],\"styleTags\":[],\"budgetCents\":null,\"budgetScope\":\"none\",\"\
+            includeCurrentProduct\":null,\"anchorProductId\":null,\"otherRequirements\"\
+            :[],\"missingInformation\":[]}\n\nq、intent、category、budgetScope 是字符串；requestedCategories、styleTags、otherRequirements、missingInformation\
+            \ 是字符串数组；budgetCents 是非负整数或 null；includeCurrentProduct 是 true、false 或\
+            \ null。使用 JSON 的双引号，不能写注释或尾随逗号。null 表示未知，不写成字符串 \"null\"。\n\n1. 顾客只修改一项条件时，只更新该项，保留历史中仍有效的商品指代、品类、风格和其他条件。新的明确要求覆盖旧要求；顾客明确换话题或重置需求时，不机械沿用旧条件。历史缺失时不要猜测。\n\
+            2. q 是简短的正向检索关键词，只描述本次要寻找的候选商品，例如“摇滚裤子”。顾客指定一件上衣再配裤子时，上衣是搭配主体，即使本轮一起购买，q\
+            \ 也只描述所找裤子，不拼入主体名称；已明确选定的页面主体用anchorProductId记录；不把主体名称或选择动作重复写入otherRequirements，不推断商品ID。上下装都还没选定时，q可以保留两类商品，例如“滚石T恤\
+            \ 摇滚裤子”，不能偷偷省掉上衣。否定条件放进 otherRequirements，不作为正向检索词。\n3. intent 根据顾客要完成的任务判断，不按本次查询几件商品判断。独立寻找商品、没有搭配对象或组合要求时为\
+            \ search；明确为某件服装寻找搭配、或要求组合时为 outfit，即使本次只需查一条裤子。明确找相似款为 similar；问当前商品事实为\
+            \ product_info；肤色或配色咨询为 color_advice；无法判断为 unknown。顾客续轮只修改预算等条件时，保留原任务意图；不能仅因需要购买当前商品或有总预算就自动判断为\
+            \ outfit。顾客要求比较多套已提供的搭配方案、问\"这两套怎么选\"等取舍问题时为 comparison，本轮不搜索新商品。\n4.\
+            \ requestedCategories表示尚待寻找的候选品类列表，不包含已经选定的搭配主体。合法值：上装tops、下装bottoms、连衣裙dresses、外套outerwear、配饰accessories、鞋shoes；不能重复，不把“不要鞋”加入列表。只剩一类时category填该值；多个品类都未选定时category填空字符串，但requestedCategories必须保留这些品类；品类确实未知时列表为空、category也为空。\n\
+            \   - “买一件滚石T恤和一条摇滚裤子”且上下文未选定上衣时，requestedCategories=[\"tops\",\"bottoms\"\
+            ]、category=\"\"。总预算明确时照常记录，不把“要什么品类”“总预算包含哪些已列出的商品”列为缺项。\n   - 顾客已选定具体上衣并要求搭配裤子时，requestedCategories=[\"\
+            bottoms\"]、category=\"bottoms\"、intent=\"outfit\"；若有对应真实页面资料，主体ID记入anchorProductId，不把主体选择重复放入otherRequirements。主体可由顾客点名，不要求已有商品ID，但不能因页面存在商品资料就认定顾客选了它。\n\
+            \   - 上一轮只询问是否用某件具体上衣作为搭配主体，顾客明确同意时，记录该选择并只保留尚未选定的候选品类；预算、风格、“不要鞋”等未更改条件继续保留。不能把确认选商品理解为同意提高预算。用户只改预算时，不改变品类列表；缺历史时不猜测。\n\
+            5. styleTags 只提取顾客明确要求的风格；没有则为空数组。不能因为当前商品有“休闲”标签，就自行认定顾客要休闲风搭配。当前商品资料用于指代，不是新增顾客要求的依据。\n\
+            6. budgetCents 只记录顾客预算并换算为整数分，500 元为 50000；不计算剩余预算，不改变商品价格。没有预算为 null，不能填\
+            \ 0。\n7. budgetScope：单件上限为item，整套或多件合计上限为total，没有预算为none。顾客在一次选购中列出多件要买的商品，并给出一个统一预算，例如“买一件A和一条B，预算500”，该预算约束这次列出的商品合计，填total；只有明确说“每件”“单件”或金额只约束其中一件时才填item。待选品类有多个、具体商品尚未确定，不代表已明确的合计预算范围未知。确有相互冲突或无法确定归属的预算时才填unknown并记录具体缺项，不在missingInformation重复列出已经明确的范围。不能把整套预算当作单件上限；本规则不自动确定某件主体是否已经被选中。\n\
+            8. includeCurrentProduct 表示本次预算是否计入顾客指定的搭配主体，不表示页面是否传入商品 ID。\n   - 顾客明确“买指定的\
+            \ A，再配 B，两件总预算 X 元”，且 A 是搭配主体时，填 true；budgetScope=total，budgetCents 按\
+            \ X 元换算为分，不再将“预算是否包含 A”列为 missingInformation。\n   - 顾客明确已拥有主体、本次预算不包含主体，或预算只用于新买搭配单品时，填\
+            \ false；预算范围仍按顾客实际表达填写。\n   - 只有包含关系确实不清楚或不适用时才填 null；不能仅看到“总预算”三个字就默认包含主体，也不能因商品\
+            \ ID 或 product_context 为空就把已明确的包含关系改为 null。顾客只说\"预算 X 元\"，既没有说总预算也没有说只买下装或已有上衣时，包含关系不清楚：includeCurrentProduct\
+            \ 填 null、budgetScope 填unknown，不得默认填 false。\n   - 指定主体可以来自页面，也可以由顾客明确点名。仅修改预算金额时保留已明确的包含关系，除非顾客同时改变预算范围；历史缺失时不猜测。\n\
+            \   - 已拥有主体只影响预算包含关系：顾客说“已经有这件上衣”“衣柜里有了”“上衣不用再买”等时，用includeCurrentProduct=false表达；不要再把这些同义说明写入otherRequirements。otherRequirements只保留尚未由专用字段表达的真实附加条件。例如“上衣已有，只配裤子，单件250元，不要鞋，而且必须防水”应为budgetCents=25000、budgetScope=\"\
+            item\"、includeCurrentProduct=false、otherRequirements=[\"不要鞋\",\"必须防水\"\
+            ]。不要为消除重复而删除防水、颜色、场合等真实要求，也不要改变顾客明确指定但无法对应页面ID的主体名称保留规则。输出前核对专用字段与otherRequirements，去除只是在重复其含义的文字。\n\
+            9. otherRequirements 保留其余明确条件，包括场合、颜色、禁配、排除品类和指定候选范围。已放入专用字段的预算、主体选择和风格不要重复放在此处。场合“通勤/上班”统一为“通勤”，排除鞋统一为“不要鞋”；其他条件如实保留，不擅自删去。不要编造店主审美规则、商品事实或\
+            \ ID。\n10. missingInformation 只记录理解本次需求必需但未知的信息；预算不是必填。历史与当前消息已说明的信息不要重复列为缺失。只改预算但没有可用历史时，记录原需求未知，不能自行补造。\n\
+            11. 相似款场景仍如实提取顾客提到的预算，不在提取阶段丢弃；是否使用预算由已确认的业务规则在后续处理。\n\n12. anchorProductId是顾客明确选定的当前页面搭配主体的真实id，字符串或null。只有intent=outfit、顾客明确“这件上衣配裤子”等搭配指代或明确选择了与页面同一件商品，且当前商品资料实际含id，才复制该id。页面存在商品资料本身不代表已选；search或未选定主体时为null。不得用名称、slug、sampleId、历史猜测或其他商品id替代。仅改预算的续轮保留已确认且仍与当前页面相同的主体；没有对应页面资料时填null，不能编造。例外：顾客点名的主体不能对应当前页面真实id时，在otherRequirements保留其原始名称，让后续知道其意图；不能为了输出ID而换成当前页面商品。includeCurrentProduct只表示本次预算是否计入主体，与anchorProductId分开判断。\n\
+            13. intent=comparison 时，本轮只比较店主已认可的具体方案：q 为空字符串、category 为空字符串、requestedCategories与\
+            \ styleTags 为空数组、budgetCents 为 null、budgetScope 为 none、includeCurrentProduct\
+            \ 为 null、anchorProductId 为null、otherRequirements与 missingInformation 为空数组。compareItems只记录顾客用来指代要比较对象的原话名称（如\"\
+            这两件\"、\"海军蓝衬衫和米白外套\"、\"刚才那两套\"），没有指代对象时为空数组；不得把店主审核资料中的商品名称填进来。顾客只问\"\
+            这两件留哪件\"而没有说明是哪两件时，compareItems 至少记录\"未指定\"。顾客的场合、温度、颜色等偏好保留在原话中，由回答环节直接读取，不填入检索字段。"
+        - id: c7e9dc4b-e79c-4e75-8793-85ef59cc3be5
+          role: user
+          text: '顾客当前问题：
+
+            {{#sys.query#}}
+
+
+            当前页面商品资料（为空则未知，不代表顾客已选中）：
+
+            {{#1793703190694.product_context#}}'
+        reasoning_format: separated
+        selected: false
+        structured_output_enabled: false
+        title: 参数提取
+        type: llm
+        vision:
+          enabled: false
+      height: 87
+      id: '1793705786188'
+      position:
+        x: 683
+        y: 282
+      positionAbsolute:
+        x: 683
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: '{{#17937169282220.text#}}'
+        selected: false
+        title: 直接回复 2
+        type: answer
+        variables: []
+      height: 102
+      id: '1793709065623'
+      position:
+        x: 1286
+        y: 425.11464298815895
+      positionAbsolute:
+        x: 1286
+        y: 425.11464298815895
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: '{{#1793703190694.size_advice#}}'
+        selected: false
+        title: 直接回复 3
+        type: answer
+        variables: []
+      height: 102
+      id: '1793709073532'
+      position:
+        x: 683
+        y: 569.2389559355379
+      positionAbsolute:
+        x: 683
+        y: 569.2389559355379
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: 已记录你的转人工请求（演示环境不会真的联系客服）。你可以先查看商品详情页，或稍后再试。
+        selected: false
+        title: 直接回复 4
+        type: answer
+        variables: []
+      height: 131
+      id: '1793709094133'
+      position:
+        x: 683
+        y: 711.1740293763081
+      positionAbsolute:
+        x: 683
+        y: 711.1740293763081
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        dataset_ids:
+        - aeBcBHgjKbI/R4awMAblMfoC3oDfiY8gtE8nH9xX0KINrEKuduOSYuI+u5mwRCer
+        multiple_retrieval_config:
+          reranking_enable: false
+          reranking_mode: reranking_model
+          top_k: 4
+        query_attachment_selector: []
+        query_variable_selector:
+        - '1793703190694'
+        - sys.query
+        retrieval_mode: multiple
+        selected: false
+        title: 知识检索
+        type: knowledge-retrieval
+      height: 89
+      id: '1793716904598'
+      position:
+        x: 683
+        y: 425.11464298815895
+      positionAbsolute:
+        x: 683
+        y: 425.11464298815895
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        context:
+          enabled: true
+          variable_selector:
+          - '1793716904598'
+          - result
+        desc: ''
+        isInIteration: false
+        isInLoop: false
+        memory:
+          query_prompt_template: '{{#sys.query#}}
+
+
+            {{#sys.files#}}'
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: false
+            size: 10
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: deepseek-v4-flash
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - id: 6caa9457-8309-4862-a3b1-75a635135954
+          role: system
+          text: "你是 Wardrobe 的导购助手。请根据“当前商品资料”和下面的知识库检索结果回答。\r\r当前商品资料（用户问“这件/这款/它”时优先使用；为空则忽略）：\r\
+            {{#1793703190694.product_context#}}规则：\r- 如果当前商品资料不为空，用户问这件商品是否可退/换，按资料中的\
+            \ returnPolicy 回答：\r  - RETURNABLE = 支持退换（演示）\r  - NO_RETURN = 不支持退换（演示）\r\
+            \  不要用通用知识库规则覆盖商品级 returnPolicy。\r- 如果当前商品资料为空，回答“退换规则按具体商品不同，请告诉我是哪一件”，不要给统一答案。\r\
+            - 其他政策问题只根据知识库检索结果回答；不要编造政策、时间、赔偿或鉴定服务。\r- 回答末尾输出 [[PRODUCTS:商品ID]]，ID\
+            \ 只能来自当前商品资料；没有有效 ID 就不输出。\r- 回答简洁，不要输出 <think>。                     \
+            \                                                                    \
+            \                                                                    \
+            \                                                                    \
+            \                                        "
+        - id: 058df11d-73f8-4762-907f-77011c09cd1d
+          role: user
+          text: "用户问题：                                                           \
+            \                                                                    \
+            \          \n  {{#sys.query#}}                                       \
+            \                                                                    \
+            \                         \n                                         \
+            \                                                                    \
+            \                                        \n  知识库检索结果：                \
+            \                                                                    \
+            \                                               \n  {{#context#}}"
+        reasoning_format: separated
+        selected: false
+        title: 回答
+        type: llm
+        vision:
+          enabled: false
+      height: 87
+      id: '17937169282220'
+      position:
+        x: 974
+        y: 425.11464298815895
+      positionAbsolute:
+        x: 974
+        y: 425.11464298815895
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        code: "function main({ text }) {\n    if (typeof text !== \"string\" || !text.trim())\
+          \ {\n      throw new Error(\"需求提取输出为空，未执行商品查询\");\n    }\n    let data;\n\
+          \    const raw = String(text).trim();\n    const unwrap = (value) => value.replace(/^```(?:json)?\\\
+          s*/i, \"\").replace(/```\\s*$/i, \"\").trim();\n    const attempts = [raw,\
+          \ unwrap(raw)];\n    const start = raw.indexOf(\"{\");\n    const end =\
+          \ raw.lastIndexOf(\"}\");\n    if (start >= 0 && end > start) attempts.push(raw.slice(start,\
+          \ end + 1));\n    const parseError = attempts.find((value) => {\n      try\
+          \ {\n        data = JSON.parse(value);\n        return false;\n      } catch\
+          \ {\n        return true;\n      }\n    });\n    if (parseError !== undefined)\
+          \ {\n      throw new Error(\"需求提取输出不是合法 JSON，未执行商品查询\");\n    } \n    \n\
+          \    if (!data || typeof data !== \"object\" || Array.isArray(data)) {\n\
+          \      throw new Error(\"需求提取输出必须是 JSON 对象\");\n    }\n    const required\
+          \ = [\"q\", \"intent\", \"category\", \"styleTags\", \"budgetCents\",\n\
+          \      \"budgetScope\", \"includeCurrentProduct\", \"otherRequirements\"\
+          , \"missingInformation\"];\n    for (const key of required) {\n      if\
+          \ (!Object.prototype.hasOwnProperty.call(data, key)) {\n        throw new\
+          \ Error(\"需求提取缺少字段：\" + key);\n      }\n    }\n    const allowed = [...required,\
+          \ \"requestedCategories\", \"anchorProductId\",\"compareItems\"];\n    const\
+          \ unknownFields = Object.keys(data).filter((key) => !allowed.includes(key));\n\
+          \    if (unknownFields.length) {\n      throw new Error(\"需求提取包含未约定字段：\"\
+          \ + unknownFields.join(\"、\"));\n    }\n    if (typeof data.q !== \"string\"\
+          \ || data.q.length > 80) {\n      throw new Error(\"q 必须是最多 80 字符的检索词\"\
+          );\n    }\n    const categories = [\"tops\", \"bottoms\", \"dresses\", \"\
+          outerwear\", \"accessories\", \"shoes\"];\n    const enums = {\n      intent:\
+          \ [\"search\", \"outfit\", \"similar\", \"product_info\", \"color_advice\"\
+          , \"comparison\", \"unknown\"],\n      category: [...categories, \"\"],\n\
+          \      budgetScope: [\"item\", \"total\", \"unknown\", \"none\"]\n    };\n\
+          \    for (const key of Object.keys(enums)) {\n      if (!enums[key].includes(data[key]))\
+          \ throw new Error(\"字段取值不合法：\" + key);\n    }\n    for (const key of [\"\
+          styleTags\", \"otherRequirements\", \"missingInformation\"]) {\n      if\
+          \ (!Array.isArray(data[key]) || data[key].some((v) => typeof v !== \"string\"\
+          \ || !v.trim())) {\n        throw new Error(\"字段必须是非空字符串组成的数组：\" + key);\n\
+          \      }\n    }\n    if (data.styleTags.length > 8 || data.styleTags.some((v)\
+          \ => v.length > 50 || /[,，]/.test(v)) ||\n        data.styleTags.join(\"\
+          ,\").length > 300) {\n      throw new Error(\"风格标签不符合商品接口格式\");\n    }\n\
+          \    for (const key of [\"otherRequirements\", \"missingInformation\"])\
+          \ {\n      if (data[key].length > 20 || data[key].some((v) => v.length >\
+          \ 300)) {\n        throw new Error(\"需求条件过长：\" + key);\n      }\n    }\n\
+          \    if (data.budgetCents !== null && (!Number.isSafeInteger(data.budgetCents)\
+          \ || data.budgetCents < 0)) {\n      throw new Error(\"预算必须是非负整数分或 null\"\
+          );\n    }\n    if ((data.budgetCents === null) !== (data.budgetScope ===\
+          \ \"none\")) {\n      throw new Error(\"预算金额与预算范围不一致\");\n    }\n    if\
+          \ (data.includeCurrentProduct !== null && typeof data.includeCurrentProduct\
+          \ !== \"boolean\") {\n      throw new Error(\"includeCurrentProduct 必须是布尔值或\
+          \ null\");\n    }\n    if (data.anchorProductId !== undefined && data.anchorProductId\
+          \ !== null &&\n        (typeof data.anchorProductId !== \"string\" || !data.anchorProductId.trim()\
+          \ || data.anchorProductId.length > 50)) {\n      throw new Error(\"anchorProductId\
+          \ 必须是真实商品ID字符串或 null\");\n    }\n    if (Object.prototype.hasOwnProperty.call(data,\
+          \ \"requestedCategories\")) {\n      const values = data.requestedCategories;\n\
+          \      if (!Array.isArray(values) || values.length > 6 ||\n          values.some((value)\
+          \ => !categories.includes(value)) || new Set(values).size !== values.length)\
+          \ {\n        throw new Error(\"requestedCategories 必须是不重复的合法品类数组\");\n \
+          \     }\n      if (values.length === 1 ? data.category !== values[0] : data.category\
+          \ !== \"\") {\n        throw new Error(\"category 必须与尚待寻找的候选品类一致\");\n \
+          \     }\n    }\n    return {\n      q: data.q.trim(),\n      category: data.category,\n\
+          \      styleTags: data.styleTags.join(\",\"),\n      requirements: JSON.stringify(data)\n\
+          \    };\n  }"
+        code_language: javascript
+        outputs:
+          category:
+            children: null
+            type: string
+          q:
+            children: null
+            type: string
+          requirements:
+            children: null
+            type: string
+          styleTags:
+            children: null
+            type: string
+        selected: false
+        title: 代码执行
+        type: code
+        variables:
+        - value_selector:
+          - '1793705786188'
+          - text
+          value_type: string
+          variable: text
+      height: 51
+      id: '1794239486268'
+      position:
+        x: 974
+        y: 282
+      positionAbsolute:
+        x: 974
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+      zIndex: 0
+    viewport:
+      x: -630.7278653105254
+      y: 67.0768784667805
+      zoom: 0.8481350179970766
+  rag_pipeline_variables: []

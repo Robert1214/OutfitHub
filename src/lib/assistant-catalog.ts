@@ -36,21 +36,32 @@ const styleAliases: Record<string, string> = {
   简约风: "简约", 中性风: "中性", 基础款: "基础",
 };
 
-const FAMILY_TERMS: Record<string, string[]> = {
-  "裤": ["裤"], "裙": ["裙"], "T恤": ["T恤", "T 恤", "T-shirt", "TEE"], "鞋": ["鞋"],
-};
+// 款式家族（裤/裙/T恤/鞋）是唯一一份定义：keywordFilters 用它拼查询条件，
+// 「最接近商品」分支用它判断 q 想找的是不是这一族。新增款式只改这里。
+export const garmentFamilies = [
+  { key: "裤", intake: ["裤子", "裤装", "裤"], match: ["裤"] },
+  { key: "裙", intake: ["半身裙", "裙子", "裙"], match: ["裙"] },
+  { key: "T恤", intake: ["t恤", "t-shirt", "tee"], match: ["T恤", "T 恤", "T-shirt", "TEE"] },
+  { key: "鞋", intake: ["鞋子", "鞋"], match: ["鞋"] },
+] as const;
 
-// 款式家族（裤/裙/T恤/鞋）用内存判断，数据库只做粗筛：
-// 数据库端 AND 一个家族条件时，若还叠加价格排序+take，会把目标款式提前截掉。
-function familyWhere(match: string[]): Prisma.ProductWhereInput {
+// 数据库端 AND 一个家族条件时，若还叠加价格排序+take，会把目标款式提前截掉；
+// 所以「最接近商品」分支先在内存里按家族过滤，这里只负责拼条件。
+function familyWhere(match: readonly string[]): Prisma.ProductWhereInput {
   return { OR: [
     ...match.map((term) => ({ name: { contains: term, mode: "insensitive" as const } })),
     ...match.map((term) => ({ tags: { has: term } })),
   ] };
 }
 
-function familyMatches(item: { name: string; tags: string[] }, terms: string[]): boolean {
+function familyMatches(item: { name: string; tags: string[] }, terms: readonly string[]): boolean {
   return terms.some((term) => item.name.includes(term) || item.tags.includes(term));
+}
+
+// q 里点名的款式家族（如「显瘦的裤子」→ 裤）。没点名则返回空数组。
+export function wantedFamilies(q: string): readonly (readonly string[])[] {
+  const text = q.toLowerCase();
+  return garmentFamilies.filter((family) => text.includes(family.key.toLowerCase())).map((family) => family.match);
 }
 
 export function normalizeStyle(value: string): string { return styleAliases[value] ?? value; }
@@ -90,16 +101,9 @@ export function keywordFilters(requirements: AssistantRequirements): Prisma.Prod
     remaining = remaining.split(generic).join(" ");
   }
   const filters: Prisma.ProductWhereInput[] = [];
-  const families = [
-    { terms: ["裤子", "裤装", "裤"], match: ["裤"] },
-    { terms: ["半身裙", "裙子", "裙"], match: ["裙"] },
-    { terms: ["t恤", "t-shirt", "tee"], match: ["T恤", "T 恤", "T-shirt", "TEE"] },
-    { terms: ["鞋子", "鞋"], match: ["鞋"] },
-  ];
-  for (const family of families) {
-    if (!family.terms.some((term) => remaining.includes(term))) continue;
-    for (const term of family.terms) remaining = remaining.split(term).join(" ");
-    // 款式家族改用共享的正则式「款式匹配」，和 keywordFilters 之外的调用方保持一致。
+  for (const family of garmentFamilies) {
+    if (!family.intake.some((term) => remaining.includes(term))) continue;
+    for (const term of family.intake) remaining = remaining.split(term).join(" ");
     filters.push(familyWhere(family.match));
   }
   for (const token of remaining.split(/[\s,，。/、]+/).filter(Boolean)) {
@@ -112,6 +116,82 @@ export function keywordFilters(requirements: AssistantRequirements): Prisma.Prod
     ] });
   }
   return filters;
+}
+
+// 「最接近的商品」统一结构：满足什么、差在哪、属于哪类差异。
+// 所有非 matched 状态都填这一个字段，回答节点只有一条收尾规则（见方案 v1 §2-2）。
+export const budgetViolationText = (overByCents: number) =>
+  `超出预算 ¥${(overByCents / 100).toFixed(2)}`;
+
+// 「最接近的商品」统一结构：满足什么、差在哪、属于哪类差异。
+// 所有非 matched 状态都填这一个字段，回答节点只有一条收尾规则（见方案 v1 §2-2）。
+export type NearestProduct<T> = {
+  product: T;
+  satisfied: string[];
+  violations: { field: string; text: string }[];
+  role: "over_budget" | "unverified" | "no_match" | "extra_requirement";
+};
+
+export function toNearest<T extends { priceCents: number; name: string }>(
+  product: T, satisfied: string[], violations: { field: string; text: string }[],
+  role: NearestProduct<T>["role"],
+): NearestProduct<T> {
+  return { product, satisfied, violations, role };
+}
+
+// 最接近商品的 satisfied 列表：只列标语式可核实的条件，交付给回答节点原样引用。
+function checkedNames(styles: string[], occasions: string[]): string[] {
+  return ["在售且有库存", ...styles, ...occasions.map((occasion) => `场合：${occasion}`)];
+}
+
+// 商品缺少顾客明确要求的风格/场合标签时，逐条写成 violation；三处调用方共用。
+export function missingTagViolations(
+  item: { styleTags: string[]; occasionTags: string[] }, styles: string[], occasions: string[],
+): { field: string; text: string }[] {
+  const violations: { field: string; text: string }[] = [];
+  const missingStyles = styles.filter((style) => !item.styleTags.includes(style));
+  if (missingStyles.length) violations.push({ field: "style", text: `风格不符：缺少「${missingStyles.join("、")}」` });
+  const missingOccasions = occasions.filter((occasion) => !item.occasionTags.includes(occasion));
+  if (missingOccasions.length) violations.push({ field: "occasion", text: `场合不符：不是「${missingOccasions.join("、")}」` });
+  return violations;
+}
+
+// 非下装搭配（裙子配鞋、裤子配上衣）的候选：先按顾客条件（风格/场合/关键词/预算）筛，
+// 一件都没有时退回同品类在售商品作为「最接近」，并逐条标出违反项。
+// 用户 2026-11-16 决定：两个结合——按条件筛，筛不到仍要给出建议并带卡片。
+export async function nearestForCategory(
+  requirements: AssistantRequirements, reader: CatalogReader, requestedLimit: number,
+): Promise<NearestProduct<ReturnType<typeof toCatalogProduct>>[]> {
+  const limit = Math.max(1, Math.min(4, Math.trunc(requestedLimit) || 4));
+  const { styles, occasions: styleOccasions } = splitStyleAndOccasion(requirements.styleTags);
+  const allOccasions = [...new Set([...styleOccasions, ...requirements.otherRequirements.filter((item) =>
+    occasionWords.has(item.trim()))])];
+  const orderBy: [{ priceCents: "asc" }, { id: "asc" }] = [{ priceCents: "asc" }, { id: "asc" }];
+  const filtered = await reader.findMany({
+    where: {
+      status: "ON_SALE", stock: { gt: 0 }, category: { slug: requirements.category },
+      ...(styles.length ? { styleTags: { hasEvery: styles } } : {}),
+      ...(allOccasions.length ? { occasionTags: { hasEvery: allOccasions } } : {}),
+      AND: keywordFilters(requirements),
+      ...(requirements.budgetCents === null ? {} : { priceCents: { lte: requirements.budgetCents } }),
+    },
+    select: catalogProductSelect, orderBy, take: limit,
+  });
+  if (filtered.length) {
+    return filtered.map((item) => toNearest(toCatalogProduct(item), checkedNames(styles, allOccasions), [], "extra_requirement"));
+  }
+  const broad = await reader.findMany({
+    where: { status: "ON_SALE", stock: { gt: 0 }, category: { slug: requirements.category } },
+    select: catalogProductSelect, orderBy, take: limit,
+  });
+  return broad.map((item) => ({
+    ...toNearest(toCatalogProduct(item), ["在售且有库存"],
+      [...missingTagViolations(item, styles, allOccasions),
+        ...(requirements.budgetCents !== null && item.priceCents > requirements.budgetCents
+          ? [{ field: "budget", text: budgetViolationText(item.priceCents - requirements.budgetCents) }] : [])],
+      "extra_requirement"),
+    outfit: null,
+  }));
 }
 
 export async function queryCatalogProducts(
@@ -131,18 +211,20 @@ export async function queryCatalogProducts(
     unresolvedRequirements: [] as string[],
     budgetAssessment: null as { minimumPriceCents: number; budgetCents: number; overByCents: number } | null,
     checkedConstraints: [] as string[],
+    // 「最接近的商品」：所有非 matched 状态统一放这里（结构见 NearestProduct）。
+    nearest: [] as NearestProduct<ReturnType<typeof toCatalogProduct>>[],
+    // 顾客问的款式已售罄时如实列出，回答节点先说明「有这款但售罄」。
+    soldOut: [] as { name: string; category: string }[],
   };
   if (requirements.intent !== "search" || (requirements.requestedCategories?.length ?? 0) > 1) {
-    // 顾客要「衬衫配鞋」这类非下装搭配时，仍返回在售同类单品的候选项（candidates），
+    // 顾客要「衬衫配鞋」这类非下装搭配时，仍返回在售同类单品的候选项（nearest），
     // 由回答节点明确说明这只是单件推荐、不是搭配核对，避免用无库存依据的通用穿搭建议代替商品。
     if (requirements.category && requirements.category !== "bottoms") {
-      const items = await reader.findMany({
-        where: { status: "ON_SALE", stock: { gt: 0 }, category: { slug: requirements.category } },
-        select: catalogProductSelect, orderBy: [{ priceCents: "asc" }, { id: "asc" }],
-        take: Math.max(1, Math.min(4, Math.trunc(requestedLimit) || 4)),
-      });
-      return { ...base, status: "unsupported_request", candidates: items.map(toCatalogProduct),
-        nextAction: "本工具不能核对这类搭配；candidates为非空同品类在售单品时，说明这只是单件推荐、不是整套搭配核对，可简短说明与顾客所提商品风格是否相配；不得给出没有库存依据的款式清单，不编造材质、保暖或防滑属性；candidates为空时说明本次没有可推荐的单品。" };
+      const nearest = await nearestForCategory(requirements, reader, requestedLimit);
+      return { ...base, status: "unsupported_request", nearest,
+        nextAction: nearest.length
+          ? "说明本工具不能核对这类整套搭配；再按【收尾规则·唯一版本】处理nearest，并点明这只是单件推荐、不是整套搭配核对。"
+          : "说明本工具不能核对这类搭配，且本次没有可推荐的在售单品；不得给出没有库存依据的款式清单，不编造材质、保暖或防滑属性。" };
     }
     return { ...base, status: "unsupported_request",
       nextAction: "本次查询暂不能核对整套搭配、相似款或其他任务；不将单品候选当成完整解决方案，不放宽原要求。" };
@@ -189,9 +271,7 @@ export async function queryCatalogProducts(
     const nearOccasions = [...new Set([...nearStyleOccasions, ...occasions])];
     // 品类按 q 里出现的具体款式（裤/裙/T恤/鞋）收窄；q 为空或没提到具体款式时才退回整个品类。
     // keywordFilters 的有界结果只有「款式家族」一种，通用词已在函数内剥离。
-    const wantedFamilies = Object.keys(FAMILY_TERMS).filter((key) =>
-      requirements.q.toLowerCase().includes(key.toLowerCase()));
-    const hasFamily = wantedFamilies.length > 0;
+    const families = wantedFamilies(requirements.q);
     const broad: Prisma.ProductWhereInput = {
       status: "ON_SALE", stock: { gt: 0 }, category: { slug: requirements.category },
       ...(nearStyles.length ? { styleTags: { hasEvery: nearStyles } } : {}),
@@ -203,32 +283,38 @@ export async function queryCatalogProducts(
     // 先取同品类最接近的若干件，再在内存里按款式家族（裤/裙/T恤/鞋）过滤；
     // 直接交给数据库 AND 会因取数上限先取到别的款式，导致过滤后为空。
     const pool = await reader.findMany({ where: broad, select: catalogProductSelect, orderBy, take: 24 });
-    const sameFamily = hasFamily
-      ? pool.filter((item) => wantedFamilies.some((key) => familyMatches(item, FAMILY_TERMS[key])))
+    // 顾客点名的款式如果已售罄，也要如实带出来（否则「问乐福鞋」只说最接近的板鞋）。
+    const soldOut = await findSoldOutByTokens(reader, requirements);
+    base.soldOut = soldOut.map(({ name, category }) => ({ name, category: category.name }));
+    const sameFamily = families.length
+      ? pool.filter((item) => families.some((terms) => familyMatches(item, terms)))
       : pool;
     const budget = requirements.budgetCents;
     const inBudget = budget === null ? sameFamily : sameFamily.filter((item) => item.priceCents <= budget);
     // 预算内有符合可核实条件的就先给它们；没有才给最接近（可能超预算），并在回答里标出超出金额。
-    // 预算内没有时，仍按与可核实条件最接近的顺序给候选（可能超预算），由回答标明差额。
     const trimmed = (inBudget.length ? inBudget : sameFamily).slice(0, 2);
     const minimumPriceCents = sameFamily.length ? sameFamily[0].priceCents : null;
     const overByCents = budget !== null && minimumPriceCents !== null && minimumPriceCents > budget
       ? minimumPriceCents - budget : null;
+    const nearest = trimmed.map((item) => {
+      const violations: { field: string; text: string }[] = [
+        ...unresolved.map((text) => ({ field: "unverified", text })),
+        ...(budget !== null && item.priceCents > budget
+          ? [{ field: "budget", text: budgetViolationText(item.priceCents - budget) }] : []),
+      ];
+      return toNearest(toCatalogProduct(item), checkedNames(nearStyles, nearOccasions), violations, "unverified");
+    });
     return { ...base, status: "needs_verification", unresolvedRequirements: unresolved,
-      products: trimmed.map(toCatalogProduct),
+      nearest,
       budgetAssessment: (budget === null || overByCents === null) ? null
         : { minimumPriceCents: minimumPriceCents!, budgetCents: budget, overByCents },
-      nextAction: trimmed.length
-        ? "说明哪些条件无法核实（见unresolvedRequirements），不得把这些条件说成已满足。仍按 D01-1 展示products里最接近的单品并输出商品标记，逐件说明它满足哪些可核实条件、哪些无法核实；给出两个出口（调整条件 / 先到这里），涉及超预算或无法满足时最后询问是否需要转人工（演示）。"
-        : "说明尚不能核实的相关条件，不把未核实条件说成已满足，也不要求顾客重复已明确的要求。" };
+      nextAction: `按【收尾规则·唯一版本】处理nearest；unresolvedRequirements逐条说成「暂时无法核实」，不得说成已满足。${base.soldOut.length ? "先如实说明soldOut里这些款式店里有但已售罄（不得说成没有这款）。" : ""}` };
   }
 
   const { styles, occasions: styleOccasions } = splitStyleAndOccasion(requirements.styleTags);
   const allOccasions = [...new Set([...styleOccasions, ...occasions])];
-  const relevance = { category: { slug: requirements.category } };
-  const relevanceFilter = { category: { slug: requirements.category } } as const;
   const where: Prisma.ProductWhereInput = {
-    status: "ON_SALE", stock: { gt: 0 }, ...relevanceFilter,
+    status: "ON_SALE", stock: { gt: 0 }, category: { slug: requirements.category },
     ...(styles.length ? { styleTags: { hasEvery: styles } } : {}),
     ...(allOccasions.length ? { occasionTags: { hasEvery: allOccasions } } : {}),
     AND: keywordFilters(requirements),
@@ -255,10 +341,6 @@ export async function queryCatalogProducts(
   const orderBy: [{ priceCents: "asc" }, { id: "asc" }] = [{ priceCents: "asc" }, { id: "asc" }];
   // 取数上限留出余量：按价格升序取数时，预算内的合格商品可能排在被截断的位置之后。
   const candidates = await reader.findMany({ where, select: catalogProductSelect, orderBy, take: Math.max(limit, 8) });
-  // D01-1: when nothing satisfies every condition, still fetch the in-stock items
-  // of the same category so the nearest alternatives can be shown, flagged as such.
-  const fallback = candidates.length ? []
-    : await reader.findMany({ where: { status: "ON_SALE", stock: { gt: 0 }, ...relevance }, select: catalogProductSelect, orderBy, take: limit });
   const checkedConstraints = ["在售且库存大于零", "品类", "正向关键词",
     ...(styles.length ? ["全部明确风格标签"] : []),
     ...(occasions.length ? [`适用场合：${occasions.join("、")}`] : []), "已识别的排除品类",
@@ -276,23 +358,56 @@ export async function queryCatalogProducts(
   }
   if (candidates.length && requirements.budgetCents !== null) {
     const minimumPriceCents = candidates[0].priceCents;
+    const overByCents = minimumPriceCents - requirements.budgetCents;
     return { ...base, checkedConstraints, status: "over_budget",
       // D01-1: return the over-budget item itself so the answer node can name it and
       // emit its marker; the rule still forbids presenting it as a recommendation.
-      products: [toCatalogProduct(candidates[0])],
-      budgetAssessment: { minimumPriceCents, budgetCents: requirements.budgetCents, overByCents: minimumPriceCents - requirements.budgetCents },
-      nextAction: "说明本次其他条件匹配商品的最低单价与超出金额，不称为预算内推荐。按 D01-1：先说明没有完全匹配，再展示这件最接近的商品并明确标出超出金额（不得称为推荐或可接受），给出两个出口（调整条件 / 先到这里），最后询问是否需要转人工（演示）；输出该商品的商品标记。顾客尚未同意前不得提高预算。" };
+      nearest: [toNearest(toCatalogProduct(candidates[0]), checkedNames(styles, allOccasions),
+        [{ field: "budget", text: budgetViolationText(overByCents) }], "over_budget")],
+      budgetAssessment: { minimumPriceCents, budgetCents: requirements.budgetCents, overByCents },
+      nextAction: "按【收尾规则·唯一版本】处理nearest；超出金额以budgetAssessment.overByCents为准。顾客尚未同意前不得提高预算。" };
   }
   // 顾客问的款式如果存在但已售罄，要把它带出来并如实说明「有这款但售罄」，
-  // 不能只说「没有匹配」，让顾客以为店里从没进过。售罄商品只作说明，不进 candidates 的推荐位。
+  // 不能只说「没有匹配」，让顾客以为店里从没进过。售罄商品只作说明，不进 nearest 的推荐位。
   const soldOut = await findSoldOutByTokens(reader, requirements);
-  return { ...base, checkedConstraints, status: "no_match_for_query", candidates: fallback.map(toCatalogProduct),
-    // 售罄款式直接写进 nextAction 文字：模型一定能读到 nextAction，
-    // 不必依赖 HTTP 工具是否把新增字段透传给模型。
+  // 「最接近」的判断顺序：先按 q 点名的款式家族收窄；再按顾客明确要求的风格/场合收窄
+  // （「复古裤子」没有复古裤、但有复古裙，裙子就是最接近的那件）；都不行才退回同品类在售。
+  // 每一级的差异都逐条写进 violations 交给回答节点，不在这里拼话术。
+  const familyTerms = wantedFamilies(requirements.q);
+  const sameFamily = familyTerms.length
+    ? candidates.filter((item) => familyTerms.some((terms) => familyMatches(item, terms)))
+    : candidates;
+  const narrowest = [...sameFamily, ...candidates].slice(0, Math.max(limit, 8));
+  const catalogue = await reader.findMany({
+    where: { status: "ON_SALE", stock: { gt: 0 }, category: { slug: requirements.category } },
+    select: catalogProductSelect, orderBy, take: Math.max(limit, 8) * 3,
+  });
+  const ranked = [
+    ...narrowest,
+    ...catalogue.filter((item) => !narrowest.some((seen) => seen.id === item.id)),
+    ...candidates,
+  ];
+  const score = (item: CatalogProduct) =>
+    (familyTerms.some((terms) => familyMatches(item, terms)) ? 0 : 4) +
+    styles.filter((style) => !item.styleTags.includes(style)).length +
+    allOccasions.filter((occasion) => !item.occasionTags.includes(occasion)).length;
+  const nearest = [...new Map(ranked.map((item) => [item.id, item])).values()]
+    .sort((a, b) => score(a) - score(b) || a.priceCents - b.priceCents)
+    .slice(0, limit)
+    .map((item) => {
+      const violations: { field: string; text: string }[] = [
+        ...(familyTerms.length && !familyTerms.some((terms) => familyMatches(item, terms))
+          ? [{ field: "keyword", text: "款式不对：不是顾客指定的那一类" }] : []),
+        ...missingTagViolations(item, styles, allOccasions),
+      ];
+      return toNearest(toCatalogProduct(item), checkedNames(styles, allOccasions), violations, "no_match");
+    });
+  return { ...base, checkedConstraints, status: "no_match_for_query", nearest,
+    soldOut: soldOut.map(({ name, category }) => ({ name, category: category.name })),
     nextAction: soldOut.length
-      ? `说明按本次已记录条件没有完全匹配；首先如实说明顾客问的款式${soldOut.map((item) => `「${item.name}」`).join("")}店里有但已经售罄，不得说成"没有这款"或"店里没有"；再在candidates中展示最接近的在售单品，逐件标出违反了哪一条，不得称为推荐或可接受；给出两个出口（调整条件 / 先到这里），最后询问是否需要转人工（演示）；输出所展示商品的商品标记。`
-      : fallback.length
-      ? "说明按本次已记录条件没有完全匹配；在candidates中展示最接近的单品（它们只匹配品类/在售，其他条件未满足），逐件标出违反了哪一条（如风格、关键词、超出预算多少），不得称为推荐或可接受；给出两个出口（调整条件 / 先到这里），最后询问是否需要转人工（演示）。"
+      ? "先如实说明soldOut里这些款式店里有但已售罄（不得说成没有这款），再按【收尾规则·唯一版本】处理nearest。"
+      : nearest.length
+      ? "按【收尾规则·唯一版本】处理nearest。"
       : "说明按本次已记录条件暂未查到匹配，不扩大成全店无货；必要时只协商一个条件。" };
 }
 

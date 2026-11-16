@@ -590,17 +590,32 @@ function buildWhere(params: {
  * 工具已经算好 reportedPriceCents，但模型仍可能照抄 outfits 里的整套合计，
  * 因此在响应体顶层再给一个显式、不可误解的「本次应报金额」与一句口径说明。
  */
-function annotateOutfitPurchaseBasis<T extends { purchaseBasis?: string; reportedPriceCents?: number | null }>(result: T & { status?: string; candidates?: unknown[] }) {
-  // Single-item no-match (D01-1): the nearest in-stock item is shown only as an
-  // explanation of the gap, never as a recommendation. Flag it so the answer node
-  // does not mistake the candidates array for a successful result.
-  const nearest = result.candidates;
-  if (result.status === "no_match_for_query" && Array.isArray(nearest) && nearest.length) {
-    return { ...result, priceBasisNote: "本次没有完全匹配；candidates只是最接近的单品，逐件说明它违反了哪一条，不得称为推荐或可接受，并给出调整条件/先到这里两个出口，最后询问是否需要转人工（演示）。" };
+const CARD_POLICY_BY_STATUS: Record<string, { mode: string; hint: string }> = {
+  matched_known_constraints: { mode: "products", hint: "从products推荐，正文点到的每件都输出对应商品标记。" },
+  needs_clarification: { mode: "none", hint: "本轮只提问，不介绍商品，不输出商品标记。" },
+  needs_verification: { mode: "name-once", hint: "正文点到的每一件nearest都要输出商品标记，不得因为「不是推荐」省略。" },
+  over_budget: { mode: "name-once", hint: "正文点到的每一件nearest都要输出商品标记，不得称为预算内推荐。" },
+  no_match_for_query: { mode: "name-once", hint: "正文点到的每一件nearest都要输出商品标记；nearest为空则不输出。" },
+  unsupported_request: { mode: "name-once", hint: "正文点到的每一件nearest都要输出商品标记，并说明只是单件推荐。" },
+  anchor_unavailable: { mode: "match-only", hint: "只给本轮新候选下装的标记，不给搭配主体的标记。" },
+  compare_target_unavailable: { mode: "none", hint: "不输出任何商品标记。" },
+};
+
+// 卡片规则由工具决定，回答节点不再各自推断：本轮正文点到哪件，就给哪件的卡片。
+function withCardPolicy<T extends { status?: string; nearest?: unknown[] }>(result: T): T & { cardPolicy?: { mode: string; hint: string } } {
+  const policy = result.status ? CARD_POLICY_BY_STATUS[result.status] : undefined;
+  if (!policy) return result;
+  if (policy.mode === "name-once" && !result.nearest?.length) {
+    return { ...result, cardPolicy: { mode: "none", hint: "本轮没有可展示的商品，不输出商品标记。" } };
   }
-  if (result.purchaseBasis !== "newItemsOnly" || result.reportedPriceCents == null) return result;
+  return { ...result, cardPolicy: policy };
+}
+
+function annotateOutfitPurchaseBasis<T extends { purchaseBasis?: string; reportedPriceCents?: number | null }>(result: T & { status?: string; nearest?: unknown[] }) {
+  const shaped = withCardPolicy(result);
+  if (result.purchaseBasis !== "newItemsOnly" || result.reportedPriceCents == null) return shaped;
   return {
-    ...result,
+    ...shaped,
     priceBasisNote: `本次只购买下装：所有金额以本次应报金额${result.reportedPriceCents}分为准，不得把搭配主体（已有上衣）的金额计入本次总价或合计。`,
   };
 }
@@ -668,6 +683,7 @@ export async function GET(request: Request) {  const expectedToken = process.env
       console.info("[assistant-tool] 结果", JSON.stringify({
         scope: result.scope, status: "status" in result ? result.status : "comparison",
         products: "products" in result ? result.products.length : 0,
+        nearest: "nearest" in result ? result.nearest.length : 0,
         clarification: "clarification" in result ? result.clarification : [],
         unresolved: "unresolvedRequirements" in result ? result.unresolvedRequirements : [],
       }));

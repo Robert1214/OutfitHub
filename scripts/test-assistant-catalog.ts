@@ -41,16 +41,21 @@ test("unknown category, unknown scope and conflicting exclusions ask before quer
 });
 
 test("unsupported tasks and unverified constraints cannot fall through to generic matches", async () => {
-  for (const intent of ["outfit", "similar", "product_info", "color_advice", "unknown"] as const) {
+  for (const intent of ["similar", "product_info", "color_advice", "unknown"] as const) {
     const result = await queryCatalogProducts({ ...demand, intent }, neverRead);
     assert.equal(result.status, "unsupported_request");
-    assert.deepEqual(result.products, []);
+    // 2026-11-16：非下装搭配改为按顾客条件给 nearest（未传入 reader 时不查库），
+    // 正常搜索（search）也不应落进通用匹配。
+    assert.equal(result.nearest.length, 0);
   }
   assert.equal((await queryCatalogProducts({ ...demand, category: "", requestedCategories: ["tops", "bottoms"] }, neverRead)).status, "unsupported_request");
-  const result = await queryCatalogProducts({ ...demand, otherRequirements: ["不要鞋", "必须适合我的腰围"] }, neverRead);
+  // 2026-11-16：有未核实条件时不再直接返回空结果，而是走 D01-1 给「最接近」；
+  // 这里用真实库验证「未核实条件保留、不当作已满足」，并且仍给出候选。
+  const result = await queryCatalogProducts({ ...demand, otherRequirements: ["不要鞋", "必须适合我的腰围"] }, prisma.product);
   assert.equal(result.status, "needs_verification");
   assert.deepEqual(result.unresolvedRequirements, ["必须适合我的腰围"]);
-  assert.deepEqual(result.products, []);
+  assert.ok(result.nearest.length > 0);
+  assert.ok(result.nearest.every((item) => item.violations.some((v) => v.field === "unverified")));
 });
 
 test("real catalog price boundary, below-budget result and zero/no budget are distinct", async () => {
@@ -61,8 +66,16 @@ test("real catalog price boundary, below-budget result and zero/no budget are di
     const result = await queryCatalogProducts({ ...demand, q: pants.name, budgetCents, budgetScope: budgetCents === null ? "none" : "item" }, prisma.product);
     const affordable = budgetCents === null || budgetCents >= pants.priceCents;
     assert.equal(result.status, affordable ? "matched_known_constraints" : "over_budget");
-    // D01-1: over budget still names the nearest item; the rule forbids recommending it.
-    assert.deepEqual(result.products.map((p) => p.id), [pants.id]);
+    if (!affordable) assert.deepEqual(result.nearest[0].violations.map((v) => v.field), ["budget"]);
+    if (affordable) {
+      // matched：从 products 推荐；nearest 不重复给，否则同一件会被点两次名。
+      assert.deepEqual(result.nearest, []);
+      assert.deepEqual(result.products.map((p) => p.id), [pants.id]);
+    } else {
+      // D01-1: over budget still names the nearest item; the rule forbids recommending it.
+      assert.deepEqual(result.nearest.map((item) => item.product.id), [pants.id]);
+      assert.deepEqual(result.products, []);
+    }
     if (!affordable) assert.deepEqual(result.budgetAssessment, { minimumPriceCents: pants.priceCents, budgetCents, overByCents: pants.priceCents - budgetCents! });
   }
 });
@@ -83,17 +96,42 @@ test("explicit category, all styles, garment type and unknown keywords remain co
   ]) {
     const unmatched = await queryCatalogProducts({ ...demand, ...change }, prisma.product);
     assert.equal(unmatched.status, "no_match_for_query");
+    // 2026-11-16：没有完全匹配时仍给出「最接近」并标出违反项（D01-1）。
     assert.deepEqual(unmatched.products, []);
+    assert.ok(unmatched.nearest.length > 0);
+    // 至少一件要标出差在哪；完全无差异的那件只有在没有更接近的候选时才会出现。
+    assert.ok(unmatched.nearest.some((item) => item.violations.length > 0));
   }
 });
 
 test("matching stock query excludes sold items and sorts affordable candidates before limiting", async () => {
   const tops = await queryCatalogProducts({ ...demand, q: "极简上衣", category: "tops", requestedCategories: ["tops"], otherRequirements: [] }, prisma.product, 1);
   assert.equal(tops.products.length, 1);
+  assert.deepEqual(tops.nearest, []);
   assert.equal(tops.products[0].slug, "grey-knit-vest");
   const sold = await queryCatalogProducts({ ...demand, q: "复古乐福鞋", category: "shoes", requestedCategories: ["shoes"], styleTags: ["复古"], budgetCents: null, budgetScope: "none", otherRequirements: [] }, prisma.product);
   assert.equal(sold.status, "no_match_for_query");
   assert.deepEqual(sold.products, []);
+});
+
+test("非下装搭配按顾客条件筛候选；筛不到退回同品类在售并标出违反项", async () => {
+  const winter = await queryCatalogProducts({ ...demand, intent: "outfit", category: "shoes", requestedCategories: ["shoes"], styleTags: [], otherRequirements: ["冬天"] }, prisma.product);
+  assert.equal(winter.status, "unsupported_request");
+  const sneakers = winter.nearest.find((item) => item.product.slug === "white-sneakers");
+  assert.ok(sneakers, "筛不到时仍要给出在售鞋款");
+  assert.ok(!winter.nearest.some((item) => item.product.slug === "retro-loafers"), "售罄款不进候选");
+  const office = await queryCatalogProducts({ ...demand, intent: "outfit", category: "shoes", requestedCategories: ["shoes"], styleTags: ["中性"], otherRequirements: ["通勤"] }, prisma.product);
+  assert.equal(office.status, "unsupported_request");
+  assert.ok(office.nearest.length > 0 && office.nearest.every((item) => item.violations.length === 0), "条件能筛到时不应带违反项");
+});
+
+test("卡片规则由工具给出：有 nearest 才要求打标，澄清与空结果不打标", async () => {
+  const noMatch = await GET(request({ ...demand, q: "复古裤子", styleTags: ["复古"] }));
+  assert.equal((await noMatch.json()).cardPolicy.mode, "name-once");
+  const clarify = await GET(request({ ...demand, category: "", requestedCategories: [], styleTags: [] }));
+  assert.equal((await clarify.json()).cardPolicy.mode, "none");
+  const matched = await GET(request(demand));
+  assert.equal((await matched.json()).cardPolicy.mode, "products");
 });
 
 test("HTTP validates auth, JSON, duplicates and legacy mixed parameters without fallback", async () => {

@@ -1,7 +1,7 @@
 import { assistantRequirementsSchema, type AssistantRequirements } from "./assistant-requirements";
 import {
-  catalogProductSelect, categoryNames, keywordFilters, normalizeStyle,
-  toCatalogProduct, type CatalogReader,
+  catalogProductSelect, categoryNames, keywordFilters, missingTagViolations, nearestForCategory, normalizeStyle,
+  toCatalogProduct, type CatalogReader, type NearestProduct,
 } from "./assistant-catalog";
 import { ownerPairingRules } from "./assistant-pairing-rules";
 
@@ -23,6 +23,8 @@ export async function queryAnchoredOutfits(
     currentProduct: null as ReturnType<typeof toCatalogProduct> | null,
     currentProductSource: null as "catalog_page_context" | null,
     products: [] as ReturnType<typeof toCatalogProduct>[], outfits: [] as Outfit[],
+    // 「最接近的组合」：与单品分支同一个结构；outfit 字段让回答节点拿到组合金额与商品名。
+    nearest: [] as (NearestProduct<ReturnType<typeof toCatalogProduct>> & { outfit: Outfit | null })[],
     clarification: [] as string[], unresolvedRequirements: [] as string[], checkedConstraints: [] as string[],
     budgetAssessment: null as {
       anchorPriceCents: number; minimumCandidatePriceCents: number;
@@ -37,18 +39,15 @@ export async function queryAnchoredOutfits(
   };
   if (requirements.intent !== "outfit" || (requirements.requestedCategories?.length ?? 0) > 1 ||
       (requirements.category && requirements.category !== "bottoms")) {
-    // 顾客要的搭配品类不是下装（如鞋、外套）时，仍返回该品类在售单品作 candidates，
-    // 由回答节点说明这只是单件推荐、不是搭配核对，避免用无库存依据的通用建议代替商品。
-    const items = (requirements.requestedCategories?.length ?? 0) === 1 && requirements.category &&
-      requirements.category !== "bottoms"
-      ? await reader.findMany({
-          where: { status: "ON_SALE", stock: { gt: 0 }, category: { slug: requirements.category } },
-          select: catalogProductSelect, orderBy: [{ priceCents: "asc" }, { id: "asc" }],
-          take: Math.max(1, Math.min(4, Math.trunc(requestedLimit) || 4)),
-        })
+    // 顾客要的搭配品类不是下装（如鞋子、上衣）时，按顾客条件筛同品类在售单品作 nearest，
+    // 由回答节点说明这只是单件推荐、不是搭配核对。筛不到时仍给出同品类在售商品并标出差异。
+    const nearest = requirements.category && requirements.category !== "bottoms"
+      ? await nearestForCategory(requirements, reader, requestedLimit)
       : [];
-    return { ...base, status: "unsupported_request", candidates: items.map(toCatalogProduct),
-      nextAction: "本阶段只支持以已选定的页面上衣搭配一件下装，不把单品列表当完整组合。candidates 非空时，从 candidates 推荐在售单品（名称与价格），并说明这是单件推荐、不是整套搭配核对，可简短说明与顾客所提商品风格是否相配；不得给出没有库存依据的款式清单，不编造材质、保暖或防滑属性；candidates 为空时说明本次没有可推荐的单品。" };
+    return { ...base, status: "unsupported_request", nearest,
+      nextAction: nearest.length
+        ? "说明本阶段只支持以已选定的页面上衣搭配一件下装；再按【收尾规则·唯一版本】处理nearest，并点明这是单件推荐、不是整套搭配核对。"
+        : "说明本阶段只支持以已选定的页面上衣搭配一件下装，且本次没有可推荐的在售单品；不得给出没有库存依据的款式清单，不编造材质、保暖或防滑属性。" };
   }
   const clarification = [...requirements.missingInformation];
   if (!requirements.category) clarification.unshift("想为这件上衣搭配哪类单品");
@@ -139,6 +138,19 @@ export async function queryAnchoredOutfits(
     ...(requirements.budgetCents === null ? [] : [includesAnchor ? "包含上衣与裤子的总预算" : "仅新购买下装的预算"])];
   const affordable = evaluated.filter(({ outfit }) => requirements.budgetCents === null || outfit.assessedPriceCents <= requirements.budgetCents)
     .slice(0, Math.max(1, Math.min(4, Math.trunc(requestedLimit) || 4)));
+  // 与单品分支共用同一个「最接近商品」结构：violations 只写真实核对出的差异。
+  const outfitNearest = (list: typeof evaluated, role: "over_budget" | "no_match") => list.map(({ product, outfit }) => ({
+    product: toCatalogProduct(product),
+    satisfied: ["店主确认的搭配关系", "候选在售且有库存"],
+    violations: [
+      ...(requirements.budgetCents !== null && outfit.assessedPriceCents > requirements.budgetCents
+        ? [{ field: "budget", text: `组合超出预算 ¥${((outfit.assessedPriceCents - requirements.budgetCents) / 100).toFixed(2)}` }]
+        : []),
+      ...missingTagViolations(product, styles, [...occasions]),
+    ],
+    role,
+    outfit,
+  }));
   if (affordable.length) {
     return { ...base, status: "matched_known_constraints", products: affordable.map(({ product }) => toCatalogProduct(product)),
       outfits: affordable.map(({ outfit }) => outfit), purchaseBasis,
@@ -150,23 +162,25 @@ export async function queryAnchoredOutfits(
   if (evaluated.length && requirements.budgetCents !== null) {
     const cheapest = evaluated[0].outfit;
     return { ...base, status: "over_budget", purchaseBasis,
-      products: [toCatalogProduct(evaluated[0].product)], outfits: [cheapest],
+      nearest: outfitNearest(evaluated.slice(0, 1), "over_budget"),
+      outfits: [cheapest],
       reportedPriceCents: cheapest.assessedPriceCents, budgetAssessment: {
       anchorPriceCents: anchor.priceCents, minimumCandidatePriceCents: cheapest.candidatePriceCents,
       minimumPriceCents: cheapest.assessedPriceCents, budgetCents: requirements.budgetCents,
       overByCents: cheapest.assessedPriceCents - requirements.budgetCents, includesAnchor,
-    }, nextAction: "说明已核对组合的实际金额与差额，不称为推荐。按 D01-1：说明没有完全匹配，展示该组合（outfits.candidateProductName 与金额）并标明超出金额，给出两个出口（调整条件 / 先到这里），最后询问是否需要转人工（演示）；输出对应商品标记。顾客尚未同意前不得提高预算。" };
+    }, nextAction: "按【收尾规则·唯一版本】处理nearest；组合金额按outfits与budgetAssessment说明。顾客尚未同意前不得提高预算。" };
   }
   // Owner decision D01-1 (2026-11-14): when nothing matches, still show the
   // closest reviewed items, flagging what each one violates, and offer exits.
   const partials = (requirements.budgetCents === null ? evaluated : evaluated.slice(0, 1)).slice(0, 2);
-  return { ...base, status: "no_match_for_query", products: partials.map(({ product }) => toCatalogProduct(product)),
-    outfits: partials.map(({ outfit }) => outfit), purchaseBasis,
+  return { ...base, status: "no_match_for_query", purchaseBasis,
+    nearest: outfitNearest(partials, "no_match"),
+    outfits: partials.map(({ outfit }) => outfit),
     budgetAssessment: partials.length && requirements.budgetCents !== null
       ? { minimumPriceCents: partials[0].outfit.assessedPriceCents, budgetCents: requirements.budgetCents,
         overByCents: partials[0].outfit.assessedPriceCents - requirements.budgetCents, includesAnchor }
       : null,
     nextAction: partials.length
-      ? "说明按当前全部条件没有完全匹配；按outfits展示最接近的已核对组合并明确标出它违反了哪一条（如超出预算多少），不得称为推荐或可接受；给出两个出口（调整条件 / 先到这里），最后询问是否需要转人工（演示）。卡片只用本轮products ID。"
+      ? "按【收尾规则·唯一版本】处理nearest；违反项已写在各件violations里。"
       : "仅在店主已确认的具体组合范围内，当前条件没有匹配；不推断全店无组合，不拿其他品类或未确认关系补推荐。" };
 }
