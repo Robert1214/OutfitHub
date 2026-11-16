@@ -164,6 +164,10 @@ function checkedNames(styles: string[], occasions: string[]): string[] {
 // 用户 2026-11-16：这类偏好只要商品标签里标了就算满足（如「显瘦」）。
 export const tagPreferences = new Set(["显瘦", "显高", "遮肉", "修饰腿型"]);
 
+// 体型、身材相关的条件：推荐时作一句提醒即可，不像「防水」那样拦住推荐（用户 2026-11-16 决定 A）。
+export const isBodyShape = (text: string): boolean =>
+  /梨形|苹果形|身材|体型|体重|\d+\s*(?:斤|kg|公斤|千克)/iu.test(text);
+
 export function missingTagViolations(
   item: { styleTags: string[]; occasionTags: string[] }, styles: string[], occasions: string[],
 ): { field: string; text: string }[] {
@@ -235,6 +239,8 @@ export async function queryCatalogProducts(
     scope: "catalog_single_item" as const,
     contractVersion: "catalog-search-v1",
     requirements,
+    // 体型等因人而异的条件：推荐照常给，只额外附一句提醒（用户 2026-11-16 决定 A）。
+    fitNotes: [] as string[],
     currentProduct: null,
     currentProductSource: null,
     products: [] as ReturnType<typeof toCatalogProduct>[],
@@ -348,19 +354,35 @@ export async function queryCatalogProducts(
         [...checkedNames(nearStyles, nearOccasions), ...verified.map((text) => `符合${text}`), ...featureEvidence(item.description, verified)],
         violations, "unverified");
     });
+    // 用户 2026-11-16 决定 A：可核实的核心条件（显瘦等）满足、预算也够时，直接推荐并出卡；
+    // 体型合身（梨形身材、160斤）这类没依据的只作一句提醒，不再拦住推荐、也不再说「没有完全匹配」。
+    const withinBudget = inBudget.slice(0, 4);
+    // 只有体型/身材类「因人而异」的提醒不拦推荐；防水、腰围这类硬条件没核实仍是问题。
+    const softUnresolved = stillUnresolved.filter(isBodyShape);
+    const hardUnresolved = stillUnresolved.filter((text) => !isBodyShape(text));
+    const recommending = hardUnresolved.length === 0 &&
+      (stillUnresolved.length === 0 || (withinBudget.length > 0 && withinBudget.length === trimmed.length));
+    const reminders = recommending ? softUnresolved.map((text) => `${text}（穿着合身因人而异，可再问人工确认）`) : [];
+    if (recommending && withinBudget.length) {
+      const products = withinBudget.map(toCatalogProduct);
+      const verifiedForAll = unresolved.filter((text) =>
+        withinBudget.some((item) => tagOk(item as { tags: string[]; styleTags: string[] }, text)));
+      return { ...base, status: "matched_known_constraints", products, nearest: [],
+        checkedConstraints: [...checkedNames(nearStyles, nearOccasions), ...verifiedForAll.map((text) => `符合${text}`)],
+        fitNotes: reminders,
+        budgetRemainderCents: budget === null ? null : budget - withinBudget[0].priceCents,
+        cardPolicy: { mode: "products", hint: "从products推荐，正文点到的每件都输出对应商品标记。" },
+        nextAction: reminders.length
+          ? `直接推荐并输出products标记：说出具体版型和效果（如「宽松直筒版型，很显瘦，符合你要的」），结尾加一句提醒：${reminders.join("；")}。不要对顾客说「标签」「商品标注了」「资料」这类系统用语，也不要说「没有完全匹配」。`
+          : "直接推荐并输出products标记：说出具体版型和效果（如「宽松直筒版型，很显瘦，符合你要的」），再问一句喜不喜欢。不要对顾客说「标签」「商品标注了」「资料」这类系统用语。",
+      };
+    }
     return { ...base, status: "needs_verification", unresolvedRequirements: stillUnresolved,
       nearest,
-      // 偏好已由标签核实、且预算够：直接按 matched 推荐并出卡，不再走「最接近」话术。
-      ...(stillUnresolved.length === 0 && inBudget.length
-        ? { status: "matched_known_constraints" as const,
-            products: inBudget.slice(0, 4).map(toCatalogProduct),
-            budgetRemainderCents: budget === null ? null : budget - inBudget[0].priceCents,
-            cardPolicy: { mode: "products", hint: "从products推荐，正文点到的每件都输出对应商品标记。" } }
-        : {}),
       budgetAssessment: (budget === null || overByCents === null) ? null
         : { minimumPriceCents: minimumPriceCents!, budgetCents: budget, overByCents },
-      nextAction: stillUnresolved.length === 0 && inBudget.length
-        ? "偏好已由商品资料核实（satisfied里的「符合XX」「版型依据」）：像店员一样直接推荐，说出具体版型和效果（如「宽松直筒版型，很显瘦，符合你要的」），再用一句话确认喜不喜欢；不要对顾客说「标签」「商品标注了」「资料」这类系统用语。"
+      nextAction: stillUnresolved.length === 0
+        ? "按【收尾规则·唯一版本】处理nearest；satisfied里的「符合XX」「版型依据」是已核实的商品特点，推荐时自然地说出效果（如「宽松直筒版型，很显瘦，符合你要的显瘦」），不要对顾客说「标签」「商品标注了」「资料」这类系统用语。"
         : `按【收尾规则·唯一版本】处理nearest；unresolvedRequirements逐条说成「暂时无法核实」，不得说成已满足。satisfied里的「符合XX」「版型依据」是已核实的商品特点，推荐时自然地说出效果（如「宽松直筒版型，很显瘦，符合你要的显瘦」），不要对顾客说「标签」「商品标注了」「资料」这类系统用语；由资料核实、顾客没有异议的小条件（如预算）不算「差的地方」。${base.soldOut.length ? "先如实说明soldOut里这些款式店里有但已售罄（不得说成没有这款）。" : ""}` };
   }
 

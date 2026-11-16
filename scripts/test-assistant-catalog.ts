@@ -66,6 +66,20 @@ test("顾客说「风格无所谓」时不再追问风格，同类在售商品�
   assert.ok(["unsupported_request", "needs_clarification", "matched_known_constraints"].includes(outfit.status));
 });
 
+test("体型类提醒不拦推荐（决定A），防水等硬条件仍拦", async () => {
+  // 显瘦满足 + 预算够：直接推荐出卡，体型只作提醒。
+  const fit = await queryCatalogProducts({ ...demand, q: "显瘦裤子", styleTags: [], budgetCents: 40000,
+    otherRequirements: ["显瘦", "梨形身材", "160斤"] }, prisma.product);
+  assert.equal(fit.status, "matched_known_constraints");
+  assert.ok(fit.products.length > 0);
+  assert.ok(fit.fitNotes.some((text) => text.includes("梨形身材") || text.includes("160斤")), JSON.stringify(fit.fitNotes));
+  // 防水没有依据，即使预算够也不能直接推荐。
+  const waterproof = await queryCatalogProducts({ ...demand, q: "显瘦裤子", styleTags: [], budgetCents: 40000,
+    otherRequirements: ["显瘦", "必须防水"] }, prisma.product);
+  assert.equal(waterproof.status, "needs_verification");
+  assert.ok(waterproof.nearest.length > 0);
+});
+
 test("商品标了「显瘦」就按标签算满足，只有体型等仍未核实", async () => {
   // 2026-11-16 用户决定：「显瘦」等在商品标签里标了就算可核实。
   const result = await queryCatalogProducts({ ...demand, q: "显瘦裤子", styleTags: [], budgetCents: 30000,

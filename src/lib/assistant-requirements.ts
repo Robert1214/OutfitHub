@@ -31,6 +31,9 @@ export const assistantRequirementsSchema = z.object({
 
 export type AssistantRequirements = z.infer<typeof assistantRequirementsSchema>;
 
+// 体型等因人而异的条件：推荐照常给，只额外附一句提醒（用户 2026-11-16 决定 A）。
+export type FitNotes = { fitNotes?: string[] };
+
 // 用户 2026-11-16：商品标签里明确标了「显瘦」时，「显瘦」算可核实条件（按标签核对），
 // 不放进「暂时无法核实」。只认标签原词，不从描述里推断。
 export function isTagVerifiable(requirement: string, tags: string[]): boolean {
