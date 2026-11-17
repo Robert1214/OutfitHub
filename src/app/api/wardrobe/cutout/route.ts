@@ -149,7 +149,9 @@ export async function GET(request: Request) {
     return NextResponse.json({
       status: cached.status,
       whiteKey: cached.whiteKey,
+      flatKey: cached.flatKey,
       url: cached.url,
+      flatUrl: cached.flatUrl,
       color: cached.color,
     });
   }

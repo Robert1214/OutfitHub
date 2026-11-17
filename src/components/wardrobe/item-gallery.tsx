@@ -26,7 +26,8 @@ export function ItemGallery({ images, name }: { images: Item[]; name: string }) 
 
   return (
     <div className="space-y-3">
-      <div className="aspect-[4/5] overflow-hidden rounded-xl border bg-[repeating-conic-gradient(#eee_0%_25%,#fff_0%_50%)] bg-[length:20px_20px]">
+      {/* 展示白底图，容器用纯白 */}
+      <div className="aspect-[4/5] overflow-hidden rounded-xl border bg-white">
         {current.url ? (
           // 签名 URL 域名随 COS 桶变化，用原生 img 避免配置 remotePatterns
           // eslint-disable-next-line @next/next/no-img-element

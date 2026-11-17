@@ -49,7 +49,16 @@ export async function startCutout(originalKey: string): Promise<string> {
 
 export type CutoutPollResult =
   | { status: "RUNNING" }
-  | { status: "SUCCEEDED"; whiteKey: string; url: string | null; color: string | null }
+  | {
+      status: "SUCCEEDED";
+      /** 透明底 PNG key（画布叠图、试穿用） */
+      whiteKey: string;
+      /** 白底 PNG key（列表/详情页展示用） */
+      flatKey: string;
+      url: string | null;
+      flatUrl: string | null;
+      color: string | null;
+    }
   | { status: "FAILED"; error: string };
 
 /**
@@ -99,19 +108,31 @@ export async function pollCutout(
   }
 
   const whiteKey = buildObjectKey(COS_PREFIX.wardrobe, userId, PNG_CONTENT_TYPE);
+  // 白底版：透明图垫白，用于列表/详情页展示（同色系背景时视觉更干净）
+  const flatKey = buildObjectKey(COS_PREFIX.wardrobe, userId, PNG_CONTENT_TYPE);
 
   try {
-    await putObject(whiteKey, buffer, PNG_CONTENT_TYPE);
+    // 两条链路并行：透明原图 + 白底版本
+    const flatBuffer = await sharp(buffer)
+      .flatten({ background: { r: 255, g: 255, b: 255 } })
+      .png({ compressionLevel: 9 })
+      .toBuffer();
+
+    await Promise.all([
+      putObject(whiteKey, buffer, PNG_CONTENT_TYPE),
+      putObject(flatKey, flatBuffer, PNG_CONTENT_TYPE),
+    ]);
   } catch (error) {
     throw toCutoutError(error, "保存去背景结果");
   }
 
-  const [url, color] = await Promise.all([
+  const [url, flatUrl, color] = await Promise.all([
     getSignedUrl(whiteKey).catch(() => null),
+    getSignedUrl(flatKey).catch(() => null),
     extractDominantColor(buffer).catch(() => null),
   ]);
 
-  return { status: "SUCCEEDED", whiteKey, url, color };
+  return { status: "SUCCEEDED", whiteKey, flatKey, url, flatUrl, color };
 }
 
 /**

@@ -313,7 +313,7 @@ export function LookForm({ items, initialItemIds }: Props) {
                             active ? "ring-2 ring-primary" : "hover:bg-muted/50",
                           )}
                         >
-                          <div className="relative aspect-[4/5] bg-[repeating-conic-gradient(#f2f2f2_0%_25%,#fff_0%_50%)] bg-[length:14px_14px]">
+                          <div className="relative aspect-[4/5] bg-white">
                             {item.coverUrl ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img

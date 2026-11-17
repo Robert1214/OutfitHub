@@ -31,7 +31,8 @@ export async function GET(_request: Request, { params }: Params) {
     Promise.all(
       item.images.map(async (image) => ({
         ...image,
-        url: await getSignedUrlSafe(image.whiteKey),
+        // 展示用白底版；没有时回落到透明版
+        url: await getSignedUrlSafe(image.flatKey ?? image.whiteKey),
         originalUrl: image.originalKey
           ? await getSignedUrlSafe(image.originalKey)
           : null,

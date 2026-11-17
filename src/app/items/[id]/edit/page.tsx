@@ -22,7 +22,9 @@ export default async function EditItemPage({ params }: Props) {
       localId: image.id,
       originalKey: image.originalKey ?? image.whiteKey,
       whiteKey: image.whiteKey,
-      previewUrl: (await getSignedUrlSafe(image.whiteKey)) ?? "",
+      flatKey: image.flatKey,
+      previewUrl:
+        (await getSignedUrlSafe(image.flatKey ?? image.whiteKey)) ?? "",
       state: "done" as const,
     })),
   );

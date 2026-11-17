@@ -36,7 +36,10 @@ export type WardrobeItemDetail = WardrobeItemSummary & {
   updatedAt: Date;
   images: {
     id: string;
+    /** 透明底 PNG（画布/试穿用） */
     whiteKey: string;
+    /** 白底 PNG（展示用，可能为空） */
+    flatKey: string | null;
     originalKey: string | null;
     sortOrder: number;
   }[];
@@ -176,6 +179,7 @@ export async function getItem(
         select: {
           id: true,
           whiteKey: true,
+          flatKey: true,
           originalKey: true,
           sortOrder: true,
         },
@@ -241,12 +245,16 @@ export async function createItem(
         priceCents: input.priceCents,
         purchasedAt: input.purchasedAt,
         note: input.note,
+        // 封面用白底版（列表展示更干净）；没有白底版时回落到透明版
         coverKey:
+          input.images.find((image) => image.sortOrder === 0)?.flatKey ??
           input.images.find((image) => image.sortOrder === 0)?.whiteKey ??
+          input.images[0].flatKey ??
           input.images[0].whiteKey,
         images: {
           create: input.images.map((image, index) => ({
             whiteKey: image.whiteKey,
+            flatKey: image.flatKey ?? null,
             originalKey: image.originalKey ?? null,
             sortOrder: image.sortOrder ?? index,
           })),
@@ -274,7 +282,7 @@ export async function updateItem(
     where: { id: itemId, userId },
     select: {
       id: true,
-      images: { select: { whiteKey: true, originalKey: true } },
+      images: { select: { whiteKey: true, flatKey: true, originalKey: true } },
       tags: { select: { tagId: true } },
     },
   });
@@ -285,7 +293,9 @@ export async function updateItem(
     input.tags !== undefined ? await resolveTagIds(userId, input.tags) : null;
 
   const previousImageKeys = existing.images.flatMap((image) =>
-    image.originalKey ? [image.whiteKey, image.originalKey] : [image.whiteKey],
+    [image.whiteKey, image.flatKey, image.originalKey].filter(
+      (key): key is string => Boolean(key),
+    ),
   );
 
   await prisma.$transaction(async (tx) => {
@@ -307,12 +317,15 @@ export async function updateItem(
         ...(input.images !== undefined
           ? {
               coverKey:
+                input.images.find((image) => image.sortOrder === 0)?.flatKey ??
                 input.images.find((image) => image.sortOrder === 0)?.whiteKey ??
+                input.images[0].flatKey ??
                 input.images[0].whiteKey,
               images: {
                 deleteMany: {},
                 create: input.images.map((image, index) => ({
                   whiteKey: image.whiteKey,
+                  flatKey: image.flatKey ?? null,
                   originalKey: image.originalKey ?? null,
                   sortOrder: image.sortOrder ?? index,
                 })),
@@ -367,7 +380,7 @@ export async function deleteItem(
     where: { id: itemId, userId },
     select: {
       id: true,
-      images: { select: { whiteKey: true, originalKey: true } },
+      images: { select: { whiteKey: true, flatKey: true, originalKey: true } },
       tags: { select: { tagId: true } },
     },
   });
@@ -380,7 +393,9 @@ export async function deleteItem(
   );
 
   return existing.images.flatMap((image) =>
-    image.originalKey ? [image.whiteKey, image.originalKey] : [image.whiteKey],
+    [image.whiteKey, image.flatKey, image.originalKey].filter(
+      (key): key is string => Boolean(key),
+    ),
   );
 }
 

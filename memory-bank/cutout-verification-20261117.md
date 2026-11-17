@@ -6,6 +6,8 @@
 
 **MPS 去背景可用，参数已跑通，比 PRD 预估快。** 不需要启用备选方案 `@imgly/background-removal-node`。
 
+**模型用 `cutout-1.0-lite`，不用 `cutout-1.0-flash`**（2026-11-17 用户真实图验证后改定，见下方「模型对比」）。
+
 ## 接口参数
 
 ```js
@@ -18,7 +20,7 @@ const res = await client.ProcessImage({
     AiCutoutConfig: {
       Switch: "ON",
       Type: "foreground",                      // 前景抠图（默认）
-      Model: "cutout-1.0-flash",               // 或 cutout-1.0-lite（更快、边缘更粗）
+      Model: "cutout-1.0-lite",                // 见下方模型对比
     },
     EncodeConfig: { Format: "PNG", Quality: 100 },  // ← 关键：不指定会按原图格式输出，JPG 无透明通道
   },
@@ -28,6 +30,35 @@ const taskId = res.TaskId;
 //   Status === "FINISH" 且 ErrMsg 为空 → ImageProcessTaskResultSet[0].Output.SignedUrl
 //   Status === "FINISH" 且 ErrMsg 非空 → 实际失败（与试穿一致，这个判断必须保留）
 ```
+
+## 模型对比（2026-11-17，5 张图实测）
+
+背景：用户反馈「红色衣服 + 红黑色背景」的图，衣服被整件抠掉。
+
+| 图片 | lite 保留% | flash 保留% | lite 耗时 | flash 耗时 |
+| --- | --- | --- | --- | --- |
+| **用户红衣服**（红色主体 + 红色文字背景） | **72.5%** | **4.3%** ❌ | 2.2s | 3.8s |
+| Polo 白底衬衫 | 34.7% | 34.9% | 1.8s | 3.2s |
+| 米色阔腿裤 | 32.4% | 32.4% | 1.8s | 5.5s |
+| 米白运动外套 | 21.3% | 21.3% | 2.4s | 3.5s |
+| 裤子（模特穿着） | 30.0% | 30.0% | 2.4s | 3.5s |
+
+**结论**：其他 4 张图两模型结果一致，但 red-on-red 场景 **flash 会把整件衣服当背景抠掉**（只剩黑色图案），lite 完整保留。且 lite 普遍快一倍。→ **改用 lite**。
+
+**`Type: "pattern"` 不适用**：那是「提取图案」用的，背景会变成马赛克块，测试红衣服时 13s 且效果差。
+
+## 透明底 + 白底双版本（用户确认方案 C）
+
+用户反馈「要白底图，不要格子背景」（格子是前端表示透明的视觉图案）。最终方案：
+
+| 版本 | key 字段 | 用途 |
+| --- | --- | --- |
+| 透明 PNG | `whiteKey` | 搭配画布叠图、AI 试穿（背景不能有白块） |
+| 白底 PNG | `flatKey` | 衣橱列表、单品详情、编辑页展示 |
+
+- 生成时机：去背景成功后，用 sharp 把透明图垫白（`flatten({background:white})`），两个都存 COS
+- 封面 `coverKey` 优先取 `flatKey`，没有则回落 `whiteKey`
+- 旧数据 `flatKey` 为空时，展示层回落 `whiteKey`（会显示透明，需重新去背景）
 
 ## 实测结果
 

@@ -15,9 +15,11 @@ export type UploadedImage = {
   localId: string;
   /** COS 原图 key */
   originalKey: string;
-  /** COS 白底图 key（去背景成功后才有的；直传白底时 = originalKey） */
+  /** COS 透明底 PNG key（去背景成功后才有的；画布叠图、试穿用） */
   whiteKey: string | null;
-  /** 预览地址（签名 URL 或本地 blob） */
+  /** COS 白底 PNG key（列表/详情展示用） */
+  flatKey: string | null;
+  /** 预览地址（优先白底版，签名 URL 或本地 blob） */
   previewUrl: string;
   /** 状态 */
   state: "uploading" | "ready" | "cutting" | "done" | "failed";
@@ -117,7 +119,9 @@ export function ImageUploader({
         let payload: {
           status?: string;
           whiteKey?: string;
+          flatKey?: string;
           url?: string | null;
+          flatUrl?: string | null;
           color?: string | null;
           error?: string;
         };
@@ -141,7 +145,9 @@ export function ImageUploader({
           update(localId, {
             state: "done",
             whiteKey: payload.whiteKey,
-            previewUrl: payload.url ?? undefined,
+            flatKey: payload.flatKey ?? null,
+            // 预览优先用白底版（不显示棋盘格透明底）
+            previewUrl: payload.flatUrl ?? payload.url ?? undefined,
             color: payload.color ?? null,
             message: undefined,
           });
@@ -222,6 +228,7 @@ export function ImageUploader({
         localId: makeId(),
         originalKey: "",
         whiteKey: null,
+        flatKey: null,
         previewUrl: URL.createObjectURL(file),
         state: "uploading" as const,
       }));
@@ -263,6 +270,7 @@ export function ImageUploader({
               ...image,
               originalKey: uploaded.key,
               whiteKey: null,
+              flatKey: null,
               previewUrl: uploaded.url ?? image.previewUrl,
               state: "ready",
             };
@@ -293,15 +301,16 @@ export function ImageUploader({
 
   /** 不再去背景，直接把原图当白底图（用户自己拍的已经是白底） */
   function applyOriginalAsWhite(localId: string) {
-    update(localId, {
-      whiteKey: null,
-      state: "ready",
-      message: "将直接使用原图",
-    });
     setImages((prev) =>
       prev.map((image) =>
         image.localId === localId
-          ? { ...image, whiteKey: image.originalKey, state: "done", message: "直接使用原图" }
+          ? {
+              ...image,
+              whiteKey: image.originalKey,
+              flatKey: image.originalKey,
+              state: "done" as const,
+              message: "直接使用原图",
+            }
           : image,
       ),
     );
@@ -364,7 +373,8 @@ export function ImageUploader({
             <li key={image.localId} className="space-y-1.5">
               <div
                 className={cn(
-                  "relative aspect-[4/5] overflow-hidden rounded-lg border bg-[repeating-conic-gradient(#eee_0%_25%,#fff_0%_50%)] bg-[length:16px_16px]",
+                // 预览优先用白底图，容器用纯白
+                "relative aspect-[4/5] overflow-hidden rounded-lg border bg-white",
                   index === 0 && "ring-2 ring-primary",
                 )}
               >

@@ -339,7 +339,10 @@ model WardrobeItemImage {
   id          String @id @default(cuid())
   itemId      String
   originalKey String?
+  /// 透明底 PNG（画布叠图、试穿用）
   whiteKey    String
+  /// 白底 PNG（列表/详情页展示用；由 whiteKey 垫白生成，可为空表示尚未生成）
+  flatKey     String?
   sortOrder   Int    @default(0)
 
   item WardrobeItem @relation(fields: [itemId], references: [id], onDelete: Cascade)

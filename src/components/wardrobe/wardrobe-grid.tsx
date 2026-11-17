@@ -36,9 +36,10 @@ export function WardrobeGrid({ items, selected = [], onToggle }: Props) {
 
         const body = (
           <>
+            {/* 展示的是白底图（flatKey），容器用纯白，避免出现"棋盘格留边" */}
             <div
               className={cn(
-                "relative aspect-[4/5] overflow-hidden rounded-xl border bg-[repeating-conic-gradient(#f2f2f2_0%_25%,#fff_0%_50%)] bg-[length:16px_16px]",
+                "relative aspect-[4/5] overflow-hidden rounded-xl border bg-white",
                 isSelected && "ring-2 ring-primary",
               )}
             >

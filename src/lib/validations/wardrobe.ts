@@ -63,8 +63,10 @@ export const hexColorSchema = z
   .regex(/^#([0-9a-fA-F]{6})$/, "颜色格式应为 #RRGGBB");
 
 export const itemImageSchema = z.object({
-  /** 去背景后的透明 PNG key（必填） */
+  /** 去背景后的透明 PNG key（必填；画布叠图、试穿用） */
   whiteKey: cosKeySchema,
+  /** 白底 PNG key（列表/详情展示用；缺省时用 whiteKey 展示） */
+  flatKey: cosKeySchema.optional().nullable(),
   /** 原图 key（走「直接上传白底图」时为 null） */
   originalKey: cosKeySchema.optional().nullable(),
   sortOrder: z.number().int().min(0).max(20).default(0),

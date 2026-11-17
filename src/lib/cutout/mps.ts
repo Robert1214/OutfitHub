@@ -1,10 +1,14 @@
 /**
  * 腾讯云 MPS 去背景（服务端专用）。
  *
- * 实测参数（2026-11-17，见 memory-bank/cutout-verification-20261117.md）：
- *   ProcessImage + ImageTask.AiCutoutConfig { Type: "foreground", Model: "cutout-1.0-flash" }
+ * 实测（2026-11-17，见 memory-bank/cutout-verification-20261117.md）：
+ *   ProcessImage + ImageTask.AiCutoutConfig { Type: "foreground", Model: "cutout-1.0-lite" }
  *   + ImageTask.EncodeConfig { Format: "PNG" }   ← 不指定 PNG 会输出 JPG，透明通道丢失
- *   耗时 4~5 秒，输出 PNG 透明底，四角 alpha≈0。
+ *   耗时 1.8~2.4 秒，输出 PNG 透明底，四角 alpha≈0。
+ *
+ * 模型选择：**用 lite 不用 flash**。
+ * 实测红底红字背景上的红衣服，flash 会把整件衣服抠掉（只留黑色图案，保留 4.3%），
+ * lite 完整保留（72.5%）；其他 4 张图两者结果一致，但 lite 快一倍。
  *
  * 输出走 RMS（1 小时有效链接），需自行下载后转存 COS 私有桶。
  */
@@ -12,8 +16,8 @@ import { mps } from "tencentcloud-sdk-nodejs";
 
 const MpsClient = mps.v20190612.Client;
 
-/** 抠图模型：cutout-1.0-flash（质量-速度平衡）；cutout-1.0-lite 更快但边缘更粗 */
-const CUTOUT_MODEL = "cutout-1.0-flash";
+/** 抠图模型：cutout-1.0-lite（实测对同色系背景更稳，且比 flash 快一倍） */
+const CUTOUT_MODEL = "cutout-1.0-lite";
 /** 结果目录（MPS 侧路径，仅影响签发链接地址） */
 const OUTPUT_DIR = "/outfithub/cutout/";
 

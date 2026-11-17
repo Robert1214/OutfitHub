@@ -111,6 +111,7 @@ export function ItemForm({ initial, mode }: Props) {
       tags,
       images: usable.map((image, index) => ({
         whiteKey: image.whiteKey as string,
+        flatKey: image.flatKey,
         originalKey:
           image.whiteKey === image.originalKey ? null : image.originalKey,
         sortOrder: index,
