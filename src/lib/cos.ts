@@ -117,6 +117,33 @@ export async function getSignedUrl(key: string): Promise<string> {
   });
 }
 
+/** 读取对象内容（服务端渲染拼合图时取白底图用） */
+export async function getObjectBuffer(key: string): Promise<Buffer | null> {
+  const config = requireConfig();
+  const cos = newCos(config);
+
+  try {
+    const data = await new Promise<{ Body?: Buffer | string }>(
+      (resolve, reject) => {
+        cos.getObject(
+          { Bucket: config.bucket, Region: config.region, Key: key },
+          (error, result) => (error ? reject(error) : resolve(result)),
+        );
+      },
+    );
+    const body = data.Body;
+    if (Buffer.isBuffer(body)) return body;
+    if (typeof body === "string") return Buffer.from(body);
+    return null;
+  } catch (error) {
+    console.error(
+      "COS 读取对象失败：",
+      error instanceof Error ? error.message : "unknown",
+    );
+    return null;
+  }
+}
+
 /** 批量签名，失败的位置返回 null（列表页用，图片挂了不影响整页） */
 export async function getSignedUrls(
   keys: string[],

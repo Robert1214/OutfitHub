@@ -88,8 +88,13 @@ export async function POST(request: Request) {
     contentType: string;
   }[] = [];
 
+  // 用途前缀：单品图（含抠图结果）用 wardrobe/，实穿照用 outfits/
+  const purpose = formData.get("purpose");
+  const prefix =
+    purpose === "outfit-photo" ? COS_PREFIX.outfit : COS_PREFIX.wardrobe;
+
   for (const image of validated) {
-    const key = buildObjectKey(COS_PREFIX.wardrobe, userId, image.contentType);
+    const key = buildObjectKey(prefix, userId, image.contentType);
     try {
       await putObject(key, image.buffer, image.contentType);
     } catch (error) {
