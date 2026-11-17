@@ -13,7 +13,10 @@
     "db:seed": "prisma db seed",
     "db:import": "tsx prisma/import-products.ts",
     "images:placeholders": "tsx scripts/generate-placeholder-images.ts",
-    "eval:assistant": "node scripts/eval-assistant.mjs"
+    "eval:assistant": "node scripts/eval-assistant.mjs",
+    "dev:seed": "node scripts/dev-fixtures.mjs seed",
+    "dev:clean": "node scripts/dev-fixtures.mjs clean",
+    "dev:status": "node scripts/dev-fixtures.mjs status"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

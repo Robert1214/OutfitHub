@@ -58,6 +58,25 @@ M5 导购功能已放弃，但**现有前端视觉风格与组件作为基础沿
 - 标签按用户隔离（`@@unique([userId, name])`），带 `useCount` 用于自动补全排序。
 - 删除单品 / 搭配 / 试穿记录时**同步删 COS 对象**。
 
+### 3.3.1 测试数据规则（重要，曾误删用户数据）
+
+**所有测试数据只用 demo 账号，绝不在用户账号（手机号 `12345678910`）下造数据。**
+
+- 统一入口：`node scripts/dev-fixtures.mjs seed|clean|status`
+  - `seed`：在 demo 账号下创建 3 件单品 + 1 套搭配
+  - `clean`：**只清 demo 账号**的单品/搭配/标签与对应 COS 对象
+  - `status`：查看测试账号当前数据
+- 手工清库**必须带 userId 条件**：
+  ```sql
+  -- 正确
+  delete from wardrobe_items where "userId" = '<demo id>';
+  -- 错误（会误删真实用户数据）
+  delete from wardrobe_items;
+  ```
+- COS 清理**必须带用户路径前缀**：`wardrobe/{userId}/`，不要删整个 `wardrobe/`。
+- 测试账号：`demo@outfitexpert.demo` / `Demo123456`，userId `cmvy255si0001aotqvztah9bo`。
+- 用户账号：手机号 `12345678910`（用户8910），userId `cmvz335it00007otqov7sfzod` —— **只读，不写测试数据**。
+
 ### 3.4 登录
 
 - Auth.js v5 Credentials + JWT（7 天）；邮箱 + 密码、手机号 + 演示码 `123456`（沿用，不改）。

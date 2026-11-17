@@ -101,3 +101,18 @@ M5 导购功能放弃，但**现有前端视觉风格与组件作为基础沿用
 ## 节奏
 
 **只做第 1 步**，完成后汇报（新增了哪些表、migrate 是否成功、typecheck 是否通过），然后停下等用户确认再继续。
+
+## 测试数据规则（2026-11-17 补充，曾误删用户数据）
+
+**测试数据只在 demo 账号下创建，绝不用用户手机号账号。**
+
+```bash
+node scripts/dev-fixtures.mjs seed     # 造测试数据（demo 账号）
+node scripts/dev-fixtures.mjs clean    # 只清 demo 账号
+node scripts/dev-fixtures.mjs status   # 查看
+```
+
+- 测试账号：`demo@outfitexpert.demo` / `Demo123456`，userId `cmvy255si0001aotqvztah9bo`
+- 用户账号：手机号 `12345678910`，userId `cmvz335it00007otqov7sfzod` —— 只读
+- 手工 SQL 必须带 `where "userId" = ...`；COS 清理必须带 `wardrobe/{userId}/` 前缀
+- 历史上的失误：`delete from wardrobe_items;` 未带条件、删除整个 `wardrobe/` 前缀，导致用户上传的单品与图片被删除
