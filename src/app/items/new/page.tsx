@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { randomUUID } from "node:crypto";
 import { requireUser } from "@/lib/auth-guards";
 import { ItemForm } from "@/components/wardrobe/item-form";
 import type { ItemCategoryValue, ItemZoneValue } from "@/lib/validations/wardrobe";
@@ -41,6 +42,10 @@ export default async function NewItemPage({
       </div>
 
       <ItemForm
+        // key 保证每次进入「添加单品」都是全新的表单实例。
+        // 不加的话，Next.js 客户端缓存会复用上一次的组件状态，
+        // 导致上一件的图片/名称/颜色残留（2026-11-17 用户反馈）。
+        key={randomUUID()}
         mode="create"
         initial={{
           name: "",
