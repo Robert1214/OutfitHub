@@ -16,6 +16,8 @@ export type WardrobeQueryState = {
 export function buildWardrobeHref(
   current: WardrobeQueryState,
   overrides: Partial<WardrobeQueryState> & { resetPage?: boolean } = {},
+  /** 目标页面，默认衣橱；New 区传 "/new" */
+  basePath = "/wardrobe",
 ): string {
   const next: WardrobeQueryState = { ...current, ...overrides };
   if (overrides.resetPage !== false) next.page = undefined;
@@ -29,7 +31,7 @@ export function buildWardrobeHref(
   if (next.page && next.page > 1) params.set("page", String(next.page));
 
   const qs = params.toString();
-  return qs ? `/wardrobe?${qs}` : "/wardrobe";
+  return qs ? `${basePath}?${qs}` : basePath;
 }
 
 /** 切换某个标签（已存在则移除） */

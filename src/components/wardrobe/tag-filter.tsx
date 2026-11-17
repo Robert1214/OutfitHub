@@ -10,10 +10,12 @@ import { cn } from "@/lib/utils";
 type Props = {
   tags: TagSummary[];
   current: WardrobeQueryState;
+  /** 目标页面，默认 /wardrobe；New 区传 /new */
+  basePath?: string;
 };
 
 /** 标签筛选项：多选取交集，已选的置顶并用实心样式 */
-export function TagFilter({ tags, current }: Props) {
+export function TagFilter({ tags, current, basePath = "/wardrobe" }: Props) {
   const chosen = current.tags ?? [];
   if (tags.length === 0) return null;
 
@@ -31,7 +33,7 @@ export function TagFilter({ tags, current }: Props) {
         <p className="text-xs font-medium text-muted-foreground">标签筛选</p>
         {chosen.length > 0 ? (
           <Link
-            href={buildWardrobeHref(current, { tags: undefined })}
+            href={buildWardrobeHref(current, { tags: undefined }, basePath)}
             className="text-xs text-muted-foreground hover:text-foreground"
           >
             清空
@@ -45,9 +47,11 @@ export function TagFilter({ tags, current }: Props) {
           return (
             <Link
               key={tag.id}
-              href={buildWardrobeHref(current, {
-                tags: toggleTag(chosen, tag.name),
-              })}
+              href={buildWardrobeHref(
+                current,
+                { tags: toggleTag(chosen, tag.name) },
+                basePath,
+              )}
               className={cn(
                 "rounded-full border px-2.5 py-1 text-xs transition-colors",
                 active
