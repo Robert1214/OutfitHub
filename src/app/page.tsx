@@ -6,7 +6,7 @@ import { listLooks } from "@/lib/looks";
 import { listItems } from "@/lib/wardrobe/items";
 import { listTags } from "@/lib/wardrobe/tags";
 import { CATEGORY_LABELS } from "@/lib/validations/wardrobe";
-import { LookHero, type HeroLook } from "@/components/home/look-hero";
+import { LookHeroCarousel, type HeroLook } from "@/components/home/look-hero";
 import { LookGrid, type LookCardData } from "@/components/looks/look-grid";
 import { CosImage } from "@/components/wardrobe/cos-image";
 import { buttonVariants } from "@/components/ui/button";
@@ -24,8 +24,7 @@ function formatDate(date: Date | null): string | null {
 }
 
 async function loadHomeData(userId: string) {
-  const [latest, recentLooks, newItems, tags] = await Promise.all([
-    listLooks(userId, { page: 1 }),
+  const [recentLooks, newItems, tags] = await Promise.all([
     listLooks(userId, { page: 1 }),
     listItems(userId, { zone: "NEW", page: 1 }),
     listTags(userId, { limit: 12 }),
@@ -45,23 +44,17 @@ async function loadHomeData(userId: string) {
   ];
   const signed = await getSignedUrls(keys);
 
-  const first = latest.looks[0];
-  const heroLook: HeroLook | null = first
-    ? {
-        id: first.id,
-        name: first.name,
-        occasion: first.occasion,
-        wornAtLabel: formatDate(first.wornAt ?? first.createdAt),
-        note: null,
-        photoUrl: first.photoKey ? (signed[first.photoKey] ?? null) : null,
-        collageUrl: first.collageKey
-          ? (signed[first.collageKey] ?? null)
-          : null,
-        fallbackUrls: first.fallbackCoverKeys.map((key) => signed[key] ?? null),
-        itemCount: first.itemCount,
-        tags: first.tags,
-      }
-    : null;
+  // Hero 轮播：最近 5 套搭配（最新的一套排第一）
+  const heroLooks: HeroLook[] = recentLooks.looks.slice(0, 5).map((look) => ({
+    id: look.id,
+    name: look.name,
+    occasion: look.occasion,
+    wornAtLabel: formatDate(look.wornAt ?? look.createdAt),
+    photoUrl: look.photoKey ? (signed[look.photoKey] ?? null) : null,
+    collageUrl: look.collageKey ? (signed[look.collageKey] ?? null) : null,
+    fallbackUrls: look.fallbackCoverKeys.map((key) => signed[key] ?? null),
+    itemCount: look.itemCount,
+  }));
 
   // 搭配流：时间倒序，首页展示 12 个
   const lookCards: LookCardData[] = recentLooks.looks.slice(0, 12).map((look) => ({
@@ -76,7 +69,7 @@ async function loadHomeData(userId: string) {
     tags: look.tags,
   }));
 
-  return { heroLook, lookCards, recentNew, signed, tags };
+  return { heroLooks, lookCards, recentNew, signed, tags };
 }
 
 function HomeSkeleton() {
@@ -97,7 +90,7 @@ function HomeSkeleton() {
 
 async function HomeContent() {
   const session = await requireUser("/");
-  const { heroLook, lookCards, recentNew, signed, tags } = await loadHomeData(
+  const { heroLooks, lookCards, recentNew, signed, tags } = await loadHomeData(
     session.user.id,
   );
 
@@ -106,7 +99,7 @@ async function HomeContent() {
   if (empty) {
     return (
       <>
-        <LookHero look={null} />
+        <LookHeroCarousel looks={[]} />
         <section className="mt-12 rounded-2xl border border-dashed p-10 text-center">
           <p className="text-sm font-medium">从第一件衣服开始</p>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -125,7 +118,7 @@ async function HomeContent() {
 
   return (
     <>
-      <LookHero look={heroLook} />
+      <LookHeroCarousel looks={heroLooks} />
 
       {/* 最近 New 单品横滑 */}
       {recentNew.length > 0 ? (

@@ -1,141 +1,174 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { HoverSwapImage } from "@/components/looks/hover-swap-image";
 import { FallbackGrid } from "@/components/looks/fallback-grid";
-import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export type HeroLook = {
   id: string;
   name: string;
   occasion: string | null;
   wornAtLabel: string | null;
-  note: string | null;
   photoUrl: string | null;
   collageUrl: string | null;
   fallbackUrls: (string | null)[];
   itemCount: number;
-  tags: { id: string; name: string }[];
 };
 
 /**
- * 首页 Hero：最新一套搭配。
- * 左图（竖图 4:5，悬停切换白底拼合图）+ 右侧信息，避免宽幅里的左右留白。
+ * 首页 Hero 轮播：多套搭配横向滑动，6 秒自动切换，悬停暂停。
+ *
+ * 版式沿用旧商品首页：宽幅 + 背景模糊铺满 + 前景 contain 居中，
+ * 这样竖图（实穿照）在宽幅里也不会留大片空白。
+ * 前景用 HoverSwapImage，悬停切换白底拼合图。
  */
-export function LookHero({ look }: { look: HeroLook | null }) {
-  if (!look) {
+export function LookHeroCarousel({ looks }: { looks: HeroLook[] }) {
+  const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+
+  useEffect(() => {
+    if (looks.length <= 1 || paused) return;
+    const timer = window.setInterval(() => {
+      setIndex((current) => (current + 1) % looks.length);
+    }, 6000);
+    return () => window.clearInterval(timer);
+  }, [looks.length, paused]);
+
+  // 搭配数量变化时防止越界：直接用取模，避免在 effect 里 setState
+  const safeIndex = looks.length > 0 ? index % looks.length : 0;
+
+  if (looks.length === 0) {
     return (
-      <div className="grid gap-6 sm:grid-cols-[minmax(0,320px)_1fr]">
-        <div className="flex aspect-[4/5] items-center justify-center rounded-xl border border-dashed bg-muted/30 text-center">
-          <p className="px-6 text-xs text-muted-foreground">
-            还没有搭配
-            <br />
-            去衣橱勾选 2~8 件生成第一套
-          </p>
-        </div>
-        <div className="flex flex-col justify-center gap-3">
-          <p className="text-xs tracking-[0.28em] text-muted-foreground">
-            LATEST LOOK
-          </p>
-          <p className="text-xl font-semibold">从第一套搭配开始</p>
-          <p className="text-sm text-muted-foreground">
-            拍下衣服 → AI 去背景 → 勾选几件 → 画布排版
-          </p>
-          <div className="flex flex-wrap gap-2 pt-1">
-            <Link href="/items/new" className={buttonVariants()}>
-              ＋ 添加单品
-            </Link>
-            <Link
-              href="/wardrobe"
-              className={buttonVariants({ variant: "outline" })}
-            >
-              去衣橱
-            </Link>
-          </div>
-        </div>
+      <div className="flex aspect-[16/10] w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed bg-muted/30 text-center sm:aspect-[16/7] lg:aspect-[21/9]">
+        <p className="text-sm font-medium">还没有搭配</p>
+        <p className="text-xs text-muted-foreground">
+          去衣橱勾选 2~8 件单品，生成第一套
+        </p>
+        <Link
+          href="/wardrobe"
+          className="mt-2 rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground"
+        >
+          去衣橱挑单品
+        </Link>
       </div>
     );
   }
 
+  function go(direction: -1 | 1) {
+    setIndex((current) => (current + direction + looks.length) % looks.length);
+  }
+
   return (
-    <div className="grid gap-6 sm:grid-cols-[minmax(0,320px)_1fr] sm:items-center">
-      <Link
-        href={`/looks/${look.id}`}
-        className="group block overflow-hidden rounded-xl border"
+    <div
+      className="relative overflow-hidden rounded-2xl border bg-[#f1ede6]"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
+      <div
+        className="flex transition-transform duration-500 ease-out"
+        style={{ transform: `translateX(-${safeIndex * 100}%)` }}
       >
-        <div className="aspect-[4/5]">
-          {look.photoUrl || look.collageUrl ? (
-            <HoverSwapImage
-              front={look.photoUrl}
-              back={look.collageUrl}
-              alt={look.name}
-              className="h-full w-full"
-              fit="cover"
-              priority
-              fallbackText="暂无图片"
-            />
-          ) : (
-            <FallbackGrid
-              urls={look.fallbackUrls}
-              alt={look.name}
-              className="h-full w-full"
-            />
-          )}
-        </div>
-      </Link>
+        {looks.map((look, slideIndex) => {
+          const front = look.photoUrl ?? look.collageUrl;
+          return (
+            <Link
+              key={look.id}
+              href={`/looks/${look.id}`}
+              className="relative block aspect-[16/10] w-full shrink-0 sm:aspect-[16/7] lg:aspect-[21/9]"
+              aria-label={`查看搭配 ${look.name}`}
+            >
+              {/* 背景：模糊放大的同一张图，铺满宽幅，避免左右留白 */}
+              {front ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={front}
+                  alt=""
+                  aria-hidden
+                  className="absolute inset-0 h-full w-full scale-110 object-cover opacity-40 blur-2xl"
+                />
+              ) : null}
 
-      <div className="space-y-3">
-        <p className="text-xs tracking-[0.28em] text-muted-foreground">
-          LATEST LOOK
-        </p>
-        <Link href={`/looks/${look.id}`} className="block">
-          <h2 className="text-2xl font-semibold tracking-tight hover:underline sm:text-3xl">
-            {look.name}
-          </h2>
-        </Link>
-        <p className="text-sm text-muted-foreground">
-          {[look.occasion, look.wornAtLabel, `${look.itemCount} 件`]
-            .filter(Boolean)
-            .join(" · ")}
-        </p>
+              {/* 前景：完整图 + 悬停切换白底拼图 */}
+              <div className="absolute inset-0 p-3 sm:p-6">
+                {look.photoUrl || look.collageUrl ? (
+                  <HoverSwapImage
+                    front={look.photoUrl}
+                    back={look.collageUrl}
+                    alt={look.name}
+                    className="h-full w-full"
+                    fit="contain"
+                    priority={slideIndex === 0}
+                    fallbackText="暂无图片"
+                  />
+                ) : (
+                  <FallbackGrid
+                    urls={look.fallbackUrls}
+                    alt={look.name}
+                    className="h-full w-full rounded-lg"
+                  />
+                )}
+              </div>
 
-        {look.tags.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5">
-            {look.tags.map((tag) => (
-              <Link
-                key={tag.id}
-                href={`/looks?tag=${encodeURIComponent(tag.name)}`}
-                className="rounded-full bg-muted px-2.5 py-1 text-xs hover:bg-muted/70"
-              >
-                {tag.name}
-              </Link>
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/65 via-black/5 to-transparent" />
+
+              <div className="absolute bottom-5 left-5 max-w-[70%] text-white sm:bottom-8 sm:left-8">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-white/75">
+                  LATEST LOOK
+                </p>
+                <h2 className="mt-1 text-xl font-medium sm:text-3xl">
+                  {look.name}
+                </h2>
+                <p className="mt-1 text-sm text-white/90 sm:text-base">
+                  {[look.occasion, look.wornAtLabel, `${look.itemCount} 件`]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+
+      {looks.length > 1 ? (
+        <>
+          <button
+            type="button"
+            onClick={() => go(-1)}
+            aria-label="上一套搭配"
+            className="absolute left-3 top-1/2 z-20 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/80 text-foreground shadow-sm backdrop-blur transition hover:bg-background sm:left-5 sm:size-10"
+          >
+            <ChevronLeft className="size-5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => go(1)}
+            aria-label="下一套搭配"
+            className="absolute right-3 top-1/2 z-20 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/80 text-foreground shadow-sm backdrop-blur transition hover:bg-background sm:right-5 sm:size-10"
+          >
+            <ChevronRight className="size-5" />
+          </button>
+          <div className="absolute bottom-4 right-4 z-20 flex gap-1.5 sm:bottom-6 sm:right-6">
+            {looks.map((look, dotIndex) => (
+              <button
+                key={look.id}
+                type="button"
+                onClick={() => setIndex(dotIndex)}
+                aria-label={`查看第 ${dotIndex + 1} 套搭配`}
+                aria-current={dotIndex === safeIndex}
+                className={cn(
+                  "h-1.5 rounded-full transition-all",
+                  dotIndex === safeIndex
+                    ? "w-5 bg-white"
+                    : "w-1.5 bg-white/50 hover:bg-white/75",
+                )}
+              />
             ))}
           </div>
-        ) : null}
-
-        {look.note ? (
-          <p className="line-clamp-2 text-sm text-muted-foreground">
-            {look.note}
-          </p>
-        ) : null}
-
-        <p className="text-xs text-muted-foreground">
-          悬停图片可切换白底拼合图
-        </p>
-
-        <div className="flex flex-wrap gap-2 pt-1">
-          <Link
-            href={`/looks/${look.id}`}
-            className={buttonVariants({ size: "sm" })}
-          >
-            查看搭配
-          </Link>
-          <Link
-            href={`/looks/${look.id}/edit`}
-            className={buttonVariants({ variant: "outline", size: "sm" })}
-          >
-            编辑排版
-          </Link>
-        </div>
-      </div>
+        </>
+      ) : null}
     </div>
   );
 }

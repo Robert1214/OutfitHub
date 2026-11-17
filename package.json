@@ -11,9 +11,6 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
-    "db:import": "tsx prisma/import-products.ts",
-    "images:placeholders": "tsx scripts/generate-placeholder-images.ts",
-    "eval:assistant": "node scripts/eval-assistant.mjs",
     "dev:seed": "node scripts/dev-fixtures.mjs seed",
     "dev:clean": "node scripts/dev-fixtures.mjs clean",
     "dev:status": "node scripts/dev-fixtures.mjs status"
