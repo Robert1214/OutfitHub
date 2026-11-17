@@ -6,8 +6,9 @@ import { DemoBadge } from "./demo-badge";
 
 const navItems = [
   { href: "/", label: "首页" },
-  // OutfitHub：衣橱为新增入口（第 6 步提前加入，其余导航项按 PRD 第 12 步统一改）
+  // OutfitHub：衣橱、搭配为新增入口（其余导航项按 PRD 第 12 步统一改）
   { href: "/wardrobe", label: "衣橱" },
+  { href: "/looks", label: "搭配" },
   { href: "/products", label: "商品" },
   { href: "/assistant", label: "导购" },
   { href: "/cart", label: "购物车" },

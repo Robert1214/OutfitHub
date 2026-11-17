@@ -17,6 +17,8 @@ type Props = {
   meta: Record<string, CanvasItemMeta>;
   /** 自动排版的原始结果，用于「恢复自动排版」 */
   autoElements: CanvasElement[];
+  /** 是否已经生成过拼合图（没有时即使坐标没变也允许保存） */
+  hasCollage: boolean;
 };
 
 const MAX_HISTORY = 30;
@@ -26,6 +28,7 @@ export function CanvasEditor({
   initialElements,
   meta,
   autoElements,
+  hasCollage,
 }: Props) {
   const [elements, setElements] = useState<CanvasElement[]>(initialElements);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -33,11 +36,14 @@ export function CanvasEditor({
   const [history, setHistory] = useState<CanvasElement[][]>([]);
   const [saving, setSaving] = useState(false);
   const [collageUrl, setCollageUrl] = useState<string | null>(null);
+  /** 保存过一次（或服务端已有拼合图）就为 true */
+  const [collageReady, setCollageReady] = useState(hasCollage);
   const snapshotRef = useRef<CanvasElement[]>(initialElements);
 
+  // 坐标有改动，或还没有拼合图 → 都认为需要保存
   const dirty = useMemo(
-    () => JSON.stringify(elements) !== JSON.stringify(saved),
-    [elements, saved],
+    () => JSON.stringify(elements) !== JSON.stringify(saved) || !collageReady,
+    [elements, saved, collageReady],
   );
 
   /** 每次交互结束压栈 */
@@ -144,6 +150,7 @@ export function CanvasEditor({
       }
       setSaved(elements);
       setCollageUrl(data.collageUrl ?? null);
+      setCollageReady(true);
       toast.success("排版已保存，白底拼合图已生成");
     } catch {
       toast.error("网络异常，请重试");

@@ -23,6 +23,8 @@ export type LookSummary = {
   createdAt: Date;
   itemCount: number;
   tags: { id: string; name: string }[];
+  /** 前几件单品的封面 key（没有实穿照/拼合图时，列表页用它们拼预览） */
+  fallbackCoverKeys: string[];
 };
 
 export type LookDetail = LookSummary & {
@@ -34,7 +36,10 @@ export type LookDetail = LookSummary & {
     name: string;
     category: ItemCategory;
     coverKey: string;
+    /** 透明底 PNG（画布用） */
     whiteKey: string;
+    /** 白底 PNG（展示用，可能为空） */
+    flatKey: string | null;
   }[];
 };
 
@@ -48,6 +53,12 @@ const listSelect = {
   createdAt: true,
   tags: { select: { tag: { select: { id: true, name: true } } } },
   _count: { select: { items: true } },
+  // 兜底预览：没有实穿照/拼合图时，列表页用前几件单品的封面拼一个示意
+  items: {
+    orderBy: { sortOrder: "asc" },
+    take: 4,
+    select: { item: { select: { coverKey: true } } },
+  },
 } satisfies Prisma.OutfitSelect;
 
 function toSummary(
@@ -63,6 +74,7 @@ function toSummary(
     createdAt: row.createdAt,
     itemCount: row._count.items,
     tags: row.tags.map((link) => link.tag),
+    fallbackCoverKeys: row.items.map((link) => link.item.coverKey),
   };
 }
 
@@ -141,7 +153,7 @@ export async function getLook(
               images: {
                 orderBy: { sortOrder: "asc" },
                 take: 1,
-                select: { whiteKey: true },
+                select: { whiteKey: true, flatKey: true },
               },
             },
           },
@@ -164,12 +176,14 @@ export async function getLook(
     tags: row.tags.map((link) => link.tag),
     itemCount: row._count.items,
     canvas: isCanvasArray(row.canvas) ? row.canvas : null,
+    fallbackCoverKeys: row.items.map((link) => link.item.coverKey),
     items: row.items.map((link) => ({
       id: link.item.id,
       name: link.item.name,
       category: link.item.category as ItemCategory,
       coverKey: link.item.coverKey,
       whiteKey: link.item.images[0]?.whiteKey ?? link.item.coverKey,
+      flatKey: link.item.images[0]?.flatKey ?? null,
     })),
   };
 }
@@ -322,8 +336,7 @@ export async function updateLook(
   return true;
 }
 
-/** 删除 Look，返回需要清理的 COS key */
-export async function deleteLook(
+/** 删除 Look，返回需要清理的 COS key */export async function deleteLook(
   userId: string,
   lookId: string,
 ): Promise<string[] | null> {

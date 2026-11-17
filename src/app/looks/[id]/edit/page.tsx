@@ -68,6 +68,7 @@ export default async function LookEditPage({ params }: Props) {
         lookId={look.id}
         initialElements={look.canvas ?? autoElements}
         autoElements={autoElements}
+        hasCollage={Boolean(look.collageKey)}
         meta={Object.fromEntries(metaEntries)}
       />
     </div>
