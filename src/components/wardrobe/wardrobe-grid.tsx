@@ -1,7 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { toast } from "sonner";
+import { MoreHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { CosImage } from "@/components/wardrobe/cos-image";
 import { CATEGORY_LABELS, type ItemCategoryValue } from "@/lib/validations/wardrobe";
 import { cn } from "@/lib/utils";
 
@@ -23,7 +28,7 @@ type Props = {
 
 /**
  * 单品网格：手机 2 列 / 平板 3 列 / 桌面 4 列。
- * 选中模式下卡片点击变成勾选，右下角显示序号（对应画布中的顺序）。
+ * 非多选模式下每张卡片右上角有「⋯」菜单（编辑 / 删除）。
  */
 export function WardrobeGrid({ items, selected = [], onToggle }: Props) {
   const selecting = Boolean(onToggle);
@@ -36,27 +41,19 @@ export function WardrobeGrid({ items, selected = [], onToggle }: Props) {
 
         const body = (
           <>
-            {/* 展示的是白底图（flatKey），容器用纯白，避免出现"棋盘格留边" */}
+            {/* 展示的是白底图（flatKey），容器用纯白 */}
             <div
               className={cn(
                 "relative aspect-[4/5] overflow-hidden rounded-xl border bg-white",
                 isSelected && "ring-2 ring-primary",
               )}
             >
-              {item.coverUrl ? (
-                // 签名 URL 域名随 COS 桶变化，用原生 img 避免配置 remotePatterns
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={item.coverUrl}
-                  alt={item.name}
-                  loading={index < 8 ? "eager" : "lazy"}
-                  className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105"
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-                  图片加载失败
-                </div>
-              )}
+              <CosImage
+                src={item.coverUrl}
+                alt={item.name}
+                loading={index < 8 ? "eager" : "lazy"}
+                className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105"
+              />
 
               <Badge
                 variant="outline"
@@ -76,7 +73,14 @@ export function WardrobeGrid({ items, selected = [], onToggle }: Props) {
                 >
                   {isSelected ? selectedIndex + 1 : "✓"}
                 </span>
-              ) : null}
+              ) : (
+                <ItemMenu
+                  itemId={item.id}
+                  name={item.name}
+                  index={index}
+                  onDelete={() => onToggle}
+                />
+              )}
             </div>
 
             <div className="mt-2.5 space-y-1">
@@ -118,5 +122,101 @@ export function WardrobeGrid({ items, selected = [], onToggle }: Props) {
         );
       })}
     </ul>
+  );
+}
+
+/** 卡片右上角操作菜单：编辑 / 删除 */
+function ItemMenu({
+  itemId,
+  name,
+}: {
+  itemId: string;
+  name: string;
+  index: number;
+  onDelete: () => void;
+}) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleDelete() {
+    if (
+      !window.confirm(`确定删除「${name}」吗？图片会一并从云端删除，不可恢复。`)
+    ) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/items/${itemId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        const data = (await response.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        toast.error(data.error ?? "删除失败，请重试");
+        setDeleting(false);
+        return;
+      }
+      toast.success("已删除");
+      setOpen(false);
+      router.refresh();
+    } catch {
+      toast.error("网络异常，请重试");
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <div className="absolute right-1.5 top-1.5">
+      <button
+        type="button"
+        aria-label="更多操作"
+        onClick={(event) => {
+          // 阻止冒泡到 <Link>，避免点菜单时跳走
+          event.preventDefault();
+          event.stopPropagation();
+          setOpen((value) => !value);
+        }}
+        className="flex size-7 items-center justify-center rounded-full bg-background/85 text-foreground shadow-sm backdrop-blur transition-colors hover:bg-background"
+      >
+        <MoreHorizontal className="size-4" />
+      </button>
+
+      {open ? (
+        <>
+          {/* 点击外部关闭 */}
+          <div
+            className="fixed inset-0 z-10"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              setOpen(false);
+            }}
+          />
+          <div className="absolute right-0 z-20 mt-1 w-24 overflow-hidden rounded-lg border bg-background shadow-md">
+            <Link
+              href={`/items/${itemId}/edit`}
+              onClick={(event) => event.stopPropagation()}
+              className="block px-3 py-2 text-xs hover:bg-muted"
+            >
+              编辑
+            </Link>
+            <button
+              type="button"
+              disabled={deleting}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                void handleDelete();
+              }}
+              className="block w-full px-3 py-2 text-left text-xs text-destructive hover:bg-muted disabled:opacity-50"
+            >
+              {deleting ? "删除中…" : "删除"}
+            </button>
+          </div>
+        </>
+      ) : null}
+    </div>
   );
 }

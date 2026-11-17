@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CosImage } from "@/components/wardrobe/cos-image";
 import { cn } from "@/lib/utils";
 
 type Item = {
@@ -28,19 +29,12 @@ export function ItemGallery({ images, name }: { images: Item[]; name: string }) 
     <div className="space-y-3">
       {/* 展示白底图，容器用纯白 */}
       <div className="aspect-[4/5] overflow-hidden rounded-xl border bg-white">
-        {current.url ? (
-          // 签名 URL 域名随 COS 桶变化，用原生 img 避免配置 remotePatterns
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={current.url}
-            alt={name}
-            className="h-full w-full object-contain"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            图片加载失败
-          </div>
-        )}
+        <CosImage
+          src={current.url}
+          alt={name}
+          fallbackText="图片已失效，建议重新上传"
+          className="h-full w-full object-contain"
+        />
       </div>
 
       {images.length > 1 ? (
@@ -56,14 +50,11 @@ export function ItemGallery({ images, name }: { images: Item[]; name: string }) 
               )}
               aria-label={`第 ${index + 1} 张图`}
             >
-              {image.url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={image.url}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
-              ) : null}
+              <CosImage
+                src={image.url}
+                alt=""
+                className="h-full w-full object-cover"
+              />
             </button>
           ))}
         </div>
