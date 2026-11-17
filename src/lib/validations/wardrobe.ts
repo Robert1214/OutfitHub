@@ -31,6 +31,18 @@ export const ZONE_LABELS: Record<ItemZoneValue, string> = {
   NEW: "新单据",
 };
 
+/**
+ * 按分类的拍摄提示（2026-11-18 用户确认）：
+ * 参考图越干净，去背景和 AI 试穿越准。
+ * 尤其下装：穿在模特身上拍，试穿时会「多出一个人」。
+ */
+export const CATEGORY_PHOTO_HINTS: Record<ItemCategoryValue, string> = {
+  TOP: "平铺拍摄，只拍这一件，不要穿在身上",
+  BOTTOM: "平铺或挂拍，不要穿着拍（穿着拍会导致试穿多出一个人）",
+  SHOES: "只拍鞋，不要带腿和脚踝",
+  ACCESSORY: "单独拍，不要带模特的脸和手",
+};
+
 /** COS key：路径形态 `prefix/id/uuid.ext`，避免前端塞入奇怪字符 */
 const cosKeySchema = z
   .string({ error: "图片标识不合法" })

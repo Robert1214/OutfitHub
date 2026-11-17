@@ -35,6 +35,8 @@ type Props = {
   onChange: (images: UploadedImage[]) => void;
   /** 主色回调（取第一张成功去背景的图） */
   onColorExtracted?: (color: string) => void;
+  /** 分类专属拍摄提示（由表单按当前分类传入） */
+  photoHint?: string;
 };
 
 function makeId() {
@@ -80,6 +82,7 @@ export function ImageUploader({
   initialImages = [],
   onChange,
   onColorExtracted,
+  photoHint,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [images, setImages] = useState<UploadedImage[]>(initialImages);
@@ -363,9 +366,12 @@ export function ImageUploader({
       </div>
 
       {/* 去背景能力边界提示：MPS 抠的是「前景主体」，一张图放多件会一起保留 */}
-      <p className="text-xs text-muted-foreground">
-        一张图只包含一件单品效果会更好哦（平铺或悬挂拍摄最佳）
-      </p>
+      <div className="space-y-1 text-xs text-muted-foreground">
+        <p>一张图只包含一件单品效果会更好哦</p>
+        {photoHint ? (
+          <p className="text-foreground/70">当前分类：{photoHint}</p>
+        ) : null}
+      </div>
 
       {images.length > 0 ? (
         <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4">

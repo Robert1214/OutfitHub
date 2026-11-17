@@ -14,6 +14,7 @@ import {
 import { TagPicker } from "@/components/wardrobe/tag-picker";
 import {
   CATEGORY_LABELS,
+  CATEGORY_PHOTO_HINTS,
   ITEM_CATEGORIES,
   type ItemCategoryValue,
   type ItemZoneValue,
@@ -158,6 +159,7 @@ export function ItemForm({ initial, mode }: Props) {
         </div>
         <ImageUploader
           initialImages={initial.images}
+          photoHint={CATEGORY_PHOTO_HINTS[category]}
           onChange={setImages}
           onColorExtracted={(value) => {
             // 颜色为空时才自动填入，避免覆盖用户已选
