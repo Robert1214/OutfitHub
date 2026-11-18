@@ -112,16 +112,17 @@ export function LookHeroCarousel({ looks }: { looks: HeroLook[] }) {
                 )}
               </div>
 
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/65 via-black/5 to-transparent" />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
 
-              <div className="absolute bottom-5 left-5 max-w-[70%] text-white sm:bottom-8 sm:left-8">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-white/75">
+              {/* 移动端文字更小、留白更少，避免和图片重叠 */}
+              <div className="absolute bottom-3 left-3 max-w-[75%] text-white sm:bottom-8 sm:left-8">
+                <p className="text-[9px] uppercase tracking-[0.2em] text-white/75 sm:text-[11px]">
                   LATEST LOOK
                 </p>
-                <h2 className="mt-1 text-xl font-medium sm:text-3xl">
+                <h2 className="mt-0.5 text-base font-medium sm:mt-1 sm:text-3xl">
                   {look.name}
                 </h2>
-                <p className="mt-1 text-sm text-white/90 sm:text-base">
+                <p className="mt-0.5 text-[11px] text-white/90 sm:mt-1 sm:text-base">
                   {[look.occasion, look.wornAtLabel, `${look.itemCount} 件`]
                     .filter(Boolean)
                     .join(" · ")}

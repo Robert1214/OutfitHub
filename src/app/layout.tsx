@@ -18,10 +18,11 @@ const bodoni = Bodoni_Moda({
 
 export const metadata: Metadata = {
   title: {
-    default: "Wardrobe · 线上店铺 Demo",
-    template: "%s · Wardrobe",
+    default: "OutfitHub · 个人穿搭衣橱",
+    template: "%s",
   },
-  description: "服装店线上店铺 Demo：商品浏览、演示下单、AI 试穿与导购助手。",
+  description:
+    "OutfitHub：AI 电子衣橱。单品录入、成套搭配画布、AI 试穿。",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

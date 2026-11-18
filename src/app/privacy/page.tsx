@@ -6,7 +6,7 @@ export default function PrivacyPage() {
       <p className="text-xs tracking-[0.28em] text-muted-foreground">LEGAL</p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight">隐私政策</h1>
       <p className="mt-3 text-sm text-muted-foreground">
-        本页面适用于演示项目 Wardrobe。演示环境不产生真实交易。
+        本页面适用于演示项目 OutfitHub。演示环境不产生真实交易。
       </p>
 
       <div className="mt-10 space-y-8 text-sm leading-7 text-muted-foreground">
@@ -16,8 +16,8 @@ export default function PrivacyPage() {
           </h2>
           <p>
             账号信息（邮箱或手机号、昵称、密码哈希）、你主动填写的身材数据
-            （身高、体重、胸围、腰围、臀围）、你上传的本人照片，以及购物车、
-            订单和试穿记录。
+            （身高、体重、胸围、腰围、臀围）、你上传的本人照片、衣橱单品与
+            搭配记录，以及试穿记录。
           </p>
         </section>
 
@@ -26,8 +26,8 @@ export default function PrivacyPage() {
             2. 用途
           </h2>
           <p>
-            登录与账号识别；展示和保存购物车、订单；根据身材数据与成衣尺寸做
-            合身判断；使用本人照片生成 AI 试穿图。照片不会用于训练模型。
+            登录与账号识别；保存你的衣橱单品与搭配；使用本人照片生成 AI 试穿图。
+            照片仅用于试穿，不会用于训练模型。
           </p>
         </section>
 
@@ -36,9 +36,8 @@ export default function PrivacyPage() {
             3. 存储与访问
           </h2>
           <p>
-            账号与订单存于 Postgres；本人照片和试穿结果存于腾讯云 COS
-            私有桶，通过短时签名 URL 访问。身材数据和照片仅本人可见，
-            不会出现在公开商品页或导购回答中。
+            账号、单品、搭配与试穿记录存于 Postgres；单品图、本人照片和试穿结果
+            存于腾讯云 COS 私有桶，通过短时签名 URL 访问。所有数据仅本人可见。
           </p>
         </section>
 
@@ -58,9 +57,8 @@ export default function PrivacyPage() {
             5. 第三方
           </h2>
           <p>
-            演示环境使用腾讯云 COS/MPS 完成照片存储与 AI 试穿，使用 Dify
-            提供导购回答（M5）。第三方只接收完成对应功能所需的数据；
-            密钥仅保存在服务端。
+            演示环境使用腾讯云 COS 存储图片、MPS 完成 AI 去背景与试穿。
+            第三方只接收完成对应功能所需的图片与参数；密钥仅保存在服务端。
           </p>
         </section>
 

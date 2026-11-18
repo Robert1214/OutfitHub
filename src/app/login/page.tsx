@@ -45,7 +45,7 @@ export default function LoginPage({
           登录 / 注册
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          登录后可保存身材、照片、购物车与订单。
+          登录后可保存你的衣橱、搭配与试穿记录。
         </p>
       </div>
 
