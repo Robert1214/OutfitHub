@@ -200,16 +200,66 @@ async function status() {
   const { cookie, userId } = await login();
   const looks = await api(cookie, "/api/looks?page=1");
   const items = await api(cookie, "/api/items?page=1");
-  console.log(`测试账号 ${DEMO_EMAIL}`);
+  console.log(`测试账号 ${DEMO_EMAIL}（${userId}）`);
   console.log(`  单品 ${items.total ?? 0} 件：${(items.items ?? []).map((i) => i.name).join("、") || "（空）"}`);
   console.log(`  搭配 ${looks.total ?? 0} 套：${(looks.looks ?? []).map((l) => l.name).join("、") || "（空）"}`);
-  console.log(`  userId: ${userId}`);
+  console.log("");
+  console.log("提示：clean 只会清理以上 demo 账号，用户账号数据不受影响。");
+}
+
+/**
+ * 诊断：列出数据库里每个账号的数据量。
+ * 用于确认「用户账号」是否被误写入了测试数据。
+ * 直接用 pg 查询，避免 .mjs 里 import .ts 的兼容问题。
+ */
+async function whoami() {
+  const get = readEnv();
+  const connectionString = (get("DATABASE_URL") ?? "").replace("localhost", "127.0.0.1");
+  const pg = await import("pg");
+  const client = new pg.default.Client({ connectionString });
+  await client.connect();
+
+  try {
+    const { rows } = await client.query(`
+      select
+        u.id,
+        u.email,
+        u.phone,
+        u.name,
+        (select count(*) from wardrobe_items i where i."userId" = u.id)::int as items,
+        (select count(*) from outfits o where o."userId" = u.id)::int as looks,
+        (select count(*) from tryon_records t where t."userId" = u.id)::int as tryons,
+        (select count(*) from tags g where g."userId" = u.id)::int as tags
+      from users u
+      order by u."createdAt" asc
+    `);
+
+    console.log("账号数据量：\n");
+    for (const row of rows) {
+      const isDemo = row.email === DEMO_EMAIL;
+      const mark = isDemo ? "【测试账号·可清理】" : "【用户账号·勿动】";
+      console.log(`${mark} ${row.name ?? "-"} / ${row.phone ?? row.email ?? row.id}`);
+      console.log(
+        `    单品 ${row.items} | 搭配 ${row.looks} | 试穿 ${row.tryons} | 标签 ${row.tags}`,
+      );
+      console.log(`    userId: ${row.id}`);
+    }
+    console.log(
+      "\n测试前后各跑一次：用户账号的数字如果变了，说明测试写错账号了。",
+    );
+  } finally {
+    await client.end();
+  }
 }
 
 const command = process.argv[2] ?? "status";
-const handlers = { seed, clean, status };
+const handlers = { seed, clean, status, whoami };
 if (!handlers[command]) {
-  console.log("用法: node scripts/dev-fixtures.mjs [seed|clean|status]");
+  console.log("用法: node scripts/dev-fixtures.mjs [seed|clean|status|whoami]");
+  console.log("  seed    在 demo 账号造 3 件单品 + 1 套搭配");
+  console.log("  clean   只清 demo 账号（DB + COS），不碰用户账号");
+  console.log("  status  查看 demo 账号现状");
+  console.log("  whoami  列出所有账号的数据量（确认没误写用户账号）");
   process.exit(1);
 }
 await handlers[command]().catch((error) => {

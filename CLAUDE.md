@@ -58,24 +58,65 @@ M5 导购功能已放弃，但**现有前端视觉风格与组件作为基础沿
 - 标签按用户隔离（`@@unique([userId, name])`），带 `useCount` 用于自动补全排序。
 - 删除单品 / 搭配 / 试穿记录时**同步删 COS 对象**。
 
-### 3.3.1 测试数据规则（重要，曾误删用户数据）
+### 3.3.1 测试数据规则（**最高优先级，已违规 3 次**）
 
-**所有测试数据只用 demo 账号，绝不在用户账号（手机号 `12345678910`）下造数据。**
+> **违反记录**：2026-11-17 两次、2026-11-18 一次，共 3 次误删用户数据/用错账号。
+> 每次开始测试前**必须**按本节第 0 步自检。
 
-- 统一入口：`node scripts/dev-fixtures.mjs seed|clean|status`
-  - `seed`：在 demo 账号下创建 3 件单品 + 1 套搭配
-  - `clean`：**只清 demo 账号**的单品/搭配/标签与对应 COS 对象
-  - `status`：查看测试账号当前数据
-- 手工清库**必须带 userId 条件**：
-  ```sql
-  -- 正确
-  delete from wardrobe_items where "userId" = '<demo id>';
-  -- 错误（会误删真实用户数据）
-  delete from wardrobe_items;
-  ```
-- COS 清理**必须带用户路径前缀**：`wardrobe/{userId}/`，不要删整个 `wardrobe/`。
-- 测试账号：`demo@outfitexpert.demo` / `Demo123456`，userId `cmvy255si0001aotqvztah9bo`。
-- 用户账号：手机号 `12345678910`（用户8910），userId `cmvz335it00007otqov7sfzod` —— **只读，不写测试数据**。
+#### 第 0 步：测试前必答三问
+
+1. 这次测试要操作哪个账号？→ **只用 demo**（`demo@outfitexpert.demo`）
+2. 数据清理的 SQL 带 `where "userId"` 了吗？→ **必须带**
+3. COS 清理的前缀是 `wardrobe/{demoId}/` 吗？→ **不能是 `wardrobe/`**
+
+#### 两个账号
+
+| 账号 | 登录 | userId | 用途 |
+| --- | --- | --- | --- |
+| 演示用户 | `demo@outfitexpert.demo` / `Demo123456` | `cmvy255si0001aotqvztah9bo` | **测试专用**，可随意增删 |
+| 用户8910 | 手机号 `12345678910` / 验证码 `123456` | `cmvz335it00007otqov7sfzod` | **用户本人**，只读，不写测试数据 |
+
+#### 统一入口（优先用脚本，不要手写 SQL）
+
+```bash
+node scripts/dev-fixtures.mjs seed     # demo 账号造 3 件单品 + 1 套搭配
+node scripts/dev-fixtures.mjs clean    # 只清 demo 账号（DB + COS）
+node scripts/dev-fixtures.mjs status   # 查看 demo 账号现状
+```
+
+#### 手工清库模板（复制粘贴，不要改写 where 条件）
+
+```sql
+-- ✅ 正确：demo 账号
+delete from tryon_records  where "userId" = 'cmvy255si0001aotqvztah9bo';
+delete from outfits        where "userId" = 'cmvy255si0001aotqvztah9bo';
+delete from wardrobe_items where "userId" = 'cmvy255si0001aotqvztah9bo';
+delete from tags           where "userId" = 'cmvy255si0001aotqvztah9bo';
+
+-- ❌ 禁止：不带 where 的 delete（会删掉用户数据）
+-- delete from wardrobe_items;
+```
+
+#### COS 清理
+
+```js
+// ✅ 正确
+for (const p of [`wardrobe/${DEMO_ID}/`, `outfits/${DEMO_ID}/`, `tryon-results/${DEMO_ID}/`]) { ... }
+
+// ❌ 禁止
+// for (const p of ["wardrobe/", "outfits/", "tryon-results/"]) { ... }
+```
+
+#### 浏览器测试登录哪个账号
+
+- 自动化测试脚本一律登录 **demo 账号**（邮箱 + 密码）
+- 需要验证「用户视角」时才用手机号账号，且**只在本地造临时数据、测完立即清理该账号**
+- 需要看用户自己的真实数据时，**先问用户**是否可清空
+
+#### 其他约束
+
+- 标签按用户隔离，清理时同样带 `userId`。
+- 人像照片：demo 账号的 `photoKey` 可随测试覆盖；用户账号的 `photoKey` 不要动。
 
 ### 3.4 登录
 
@@ -199,8 +240,62 @@ memory-bank/
 > `DATABASE_URL="$(grep -o 'postgresql://[^"]*' .env.local | sed 's/localhost/127.0.0.1/')" npx prisma migrate dev`
 > 临时指定，不要改 `.env.local`。
 
-## 8. 当前阶段
+## 8. 付费接口测试规则（重要）
 
-- **第 1 步已完成**（2026-11-17，commit `0a1c15d`）：9 张表 + 3 组枚举 + 迁移 `20261116175818_outfithub_mvp`，typecheck 通过。
-- **第 2 步进行中**：COS 通用方法 + 上传接口。
-- 后续按 PRD §6 任务拆分推进，每步完成汇报后停下等确认。
+试穿 `1.00 元/张`、去背景约 `0.01 元/张`，**不要重复付费测试**。
+
+| 情况 | 做法 | 花费 |
+| --- | --- | --- |
+| 改了 `src/lib/tryon/**` / `api/tryon/**` | 跑 **1 次** 1 件验证链路 | 1 元 |
+| 只改 UI、其他模块、数据库无关清理 | **不跑真实生成**，用已有历史记录验证展示 | 0 元 |
+| 需要验证多件（3 件）效果 | **攒到最后一次性跑**，不要每步都测 | 1 元 |
+| 改了去背景（`lib/cutout/**`） | 跑 1 张图验证 | 约 0.01 元 |
+
+**判断依据**：代码没动的地方不重复测。第 12 步删表、删模块后试穿代码未改，第 13 步只需验证「能打开历史记录」即可，不必重新生成。
+
+**花费记录**：截至 2026-11-18 累计 6 元（6 次试穿），其中约 2 元属重复测试。
+
+## 9. 手机/局域网访问
+
+服务默认监听 `0.0.0.0:3000`，同一 Wi-Fi 下手机可直接访问：
+
+```
+http://<电脑局域网IP>:3000
+```
+
+查 IP（Windows）：`ipconfig`，看无线网卡的「IPv4 地址」。
+
+若手机打不开：
+1. Windows 防火墙可能拦截 Node.js → 允许「专用网络」访问
+2. 手机与电脑必须在**同一 Wi-Fi**
+3. 手机流量/访客网络隔离时不通
+
+> `.env.local` 的 `AUTH_URL` / `NEXT_PUBLIC_APP_URL` 仍是 `localhost:3000`，
+> 用 IP 访问时登录跳转可能出现怪异行为；本地演示一般不影响页面浏览。
+
+**必须配置 `allowedDevOrigins`**（`next.config.ts`）：否则 dev 资源被跨源拦截，
+页面看着正常但按钮点不动（hydration 不生效）。已配置
+`172.20.10.4`（当前电脑 IP）与 `192.168.*.*`、`10.*.*.*`。换网络后 IP 变了要补一条。
+
+## 10. 当前阶段
+
+**MVP 13 步已全部完成**（2026-11-18）：
+
+| 步 | 内容 |
+| --- | --- |
+| 1 | 数据层 9 张表 + 枚举 |
+| 2 | COS 通用方法 + 上传接口 |
+| 3 | MPS 去背景（cutout-1.0-lite） |
+| 4 | 单品 CRUD + 标签服务 |
+| 5 | 录入/编辑/详情页 |
+| 6 | 衣橱页（分类/标签/多选） |
+| 7 | 搭配画布（自动排版 + 拖动缩放旋转 + 服务端渲染） |
+| 8 | 搭配列表/详情 + 悬停双视角 |
+| 9 | 页内搜索（三个页面关键词 + 标签） |
+| 10 | 新单据区 + 最近试穿 |
+| 11 | AI 试穿（异步轮询 + 每日 5 次） |
+| 12 | 首页改造 + 清理旧网店/导购模块 + 删 11 张旧表 |
+| 13 | 联调测试（52 项，见 `memory-bank/qa-20261118.md`） |
+
+后续可做：Next.js 安全升级、搭配/单品的拖拽排序、批量操作、试穿结果分享。
+

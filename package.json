@@ -13,7 +13,8 @@
     "db:seed": "prisma db seed",
     "dev:seed": "node scripts/dev-fixtures.mjs seed",
     "dev:clean": "node scripts/dev-fixtures.mjs clean",
-    "dev:status": "node scripts/dev-fixtures.mjs status"
+    "dev:status": "node scripts/dev-fixtures.mjs status",
+    "dev:whoami": "node scripts/dev-fixtures.mjs whoami"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

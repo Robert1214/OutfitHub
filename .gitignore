@@ -48,3 +48,6 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# 本地测试缓存（脚本产物、日志、临时图，不入库）
+/.local/
