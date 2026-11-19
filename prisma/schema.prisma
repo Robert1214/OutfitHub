@@ -203,3 +203,17 @@ model TryonRecordItem {
   @@id([recordId, itemId])
   @@map("tryon_record_items")
 }
+
+// 邮箱验证码（登录用，5 分钟有效）
+model EmailCode {
+  id        String   @id @default(cuid())
+  email     String
+  code      String
+  expiresAt DateTime
+  consumed  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([expiresAt])
+  @@map("email_codes")
+}

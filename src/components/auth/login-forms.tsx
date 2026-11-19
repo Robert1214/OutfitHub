@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { toast } from "sonner";
@@ -10,21 +10,32 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-type Mode = "email" | "phone";
+type Mode = "email" | "phone" | "emailCode";
 type EmailMode = "login" | "register";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function LoginForms({ nextPath }: { nextPath: string }) {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>("email");
+  const [mode, setMode] = useState<Mode>("emailCode");
   const [emailMode, setEmailMode] = useState<EmailMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
-  const [codeSent, setCodeSent] = useState(false);
+  const [emailCode, setEmailCode] = useState("");
+  const [countdown, setCountdown] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // 倒计时清理
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
 
   function switchMode(next: Mode) {
     setMode(next);
@@ -119,19 +130,102 @@ export function LoginForms({ nextPath }: { nextPath: string }) {
     router.refresh();
   }
 
-  function sendCode() {
+  function sendPhoneCode() {
     if (!/^1\d{10}$/.test(phone)) {
       setError("请输入 11 位手机号");
       return;
     }
     setError(null);
-    setCodeSent(true);
     toast.info("演示环境，验证码固定为 123456");
+  }
+
+  /** 发送邮箱验证码 */
+  async function sendEmailCode() {
+    setError(null);
+    if (!EMAIL_RE.test(email.trim())) {
+      setError("请输入正确的邮箱地址");
+      return;
+    }
+    setBusy(true);
+    try {
+      const response = await fetch("/api/auth/email-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+      };
+      if (!response.ok) {
+        setError(data.error ?? "验证码发送失败，请稍后再试");
+        return;
+      }
+      toast.success("验证码已发送到邮箱");
+      setCountdown(60);
+      timerRef.current = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            if (timerRef.current) clearInterval(timerRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } catch {
+      setError("网络异常，请重试");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleEmailCodeLogin(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+
+    if (!EMAIL_RE.test(email.trim())) {
+      setError("请输入正确的邮箱地址");
+      setBusy(false);
+      return;
+    }
+    if (!/^\d{6}$/.test(emailCode)) {
+      setError("请输入 6 位验证码");
+      setBusy(false);
+      return;
+    }
+
+    const result = await signIn("credentials", {
+      email: email.trim().toLowerCase(),
+      code: emailCode,
+      redirect: false,
+    });
+
+    if (result?.error) {
+      setError("验证码不正确或已过期");
+      setBusy(false);
+      return;
+    }
+    toast.success("登录成功");
+    router.push(nextPath);
+    router.refresh();
   }
 
   return (
     <div className="rounded-2xl border bg-card p-6 shadow-sm sm:p-8">
       <div className="flex gap-1 rounded-lg bg-muted p-1">
+        <button
+          type="button"
+          onClick={() => switchMode("emailCode")}
+          className={cn(
+            "flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+            mode === "emailCode"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+          aria-pressed={mode === "emailCode"}
+        >
+          验证码登录
+        </button>
         <button
           type="button"
           onClick={() => switchMode("email")}
@@ -143,7 +237,7 @@ export function LoginForms({ nextPath }: { nextPath: string }) {
           )}
           aria-pressed={mode === "email"}
         >
-          邮箱登录
+          邮箱密码
         </button>
         <button
           type="button"
@@ -156,11 +250,65 @@ export function LoginForms({ nextPath }: { nextPath: string }) {
           )}
           aria-pressed={mode === "phone"}
         >
-          手机号登录
+          手机号
         </button>
       </div>
 
-      {mode === "email" ? (
+      {mode === "emailCode" ? (
+        <form onSubmit={handleEmailCodeLogin} className="mt-6 space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="email-code-input">邮箱</Label>
+            <Input
+              id="email-code-input"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="you@example.com"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="email-code">验证码</Label>
+            <div className="flex gap-2">
+              <Input
+                id="email-code"
+                inputMode="numeric"
+                required
+                value={emailCode}
+                onChange={(event) =>
+                  setEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6))
+                }
+                placeholder="6 位验证码"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={sendEmailCode}
+                disabled={busy || countdown > 0}
+                className="shrink-0"
+              >
+                {countdown > 0 ? `${countdown} 秒` : "发送验证码"}
+              </Button>
+            </div>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            未注册的邮箱验证后会自动创建账号，无需密码。
+          </p>
+
+          {error ? (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          ) : null}
+
+          <Button type="submit" className="w-full" disabled={busy}>
+            {busy ? "处理中…" : "登录 / 注册"}
+          </Button>
+        </form>
+      ) : mode === "email" ? (
         <form
           onSubmit={emailMode === "login" ? handleEmailLogin : handleRegister}
           className="mt-6 space-y-4"
@@ -272,11 +420,11 @@ export function LoginForms({ nextPath }: { nextPath: string }) {
               <Button
                 type="button"
                 variant="outline"
-                onClick={sendCode}
+                onClick={sendPhoneCode}
                 disabled={busy}
                 className="shrink-0"
               >
-                {codeSent ? "已发送" : "发送验证码"}
+                发送验证码
               </Button>
             </div>
           </div>

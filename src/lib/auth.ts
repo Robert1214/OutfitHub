@@ -32,6 +32,50 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       authorize: async (credentials) => {
         const phone =
           typeof credentials?.phone === "string" ? credentials.phone : "";
+        const email =
+          typeof credentials?.email === "string"
+            ? credentials.email.trim().toLowerCase()
+            : "";
+        const password =
+          typeof credentials?.password === "string"
+            ? credentials.password
+            : "";
+        const code =
+          typeof credentials?.code === "string" ? credentials.code : "";
+
+        // 邮箱验证码登录：有 email + code，无 password
+        if (email && code && !password) {
+          const record = await prisma.emailCode.findFirst({
+            where: {
+              email,
+              code,
+              consumed: false,
+              expiresAt: { gt: new Date() },
+            },
+            orderBy: { createdAt: "desc" },
+          });
+          if (!record) return null;
+
+          // 标记已使用，防止重复登录
+          await prisma.emailCode.update({
+            where: { id: record.id },
+            data: { consumed: true },
+          });
+
+          const user = await prisma.user.upsert({
+            where: { email },
+            update: {},
+            create: { email, name: email.split("@")[0] },
+          });
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+          };
+        }
+
         if (phone) {
           const parsed = phoneLoginSchema.safeParse({
             phone,
