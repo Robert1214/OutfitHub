@@ -240,6 +240,30 @@ memory-bank/
 > `DATABASE_URL="$(grep -o 'postgresql://[^"]*' .env.local | sed 's/localhost/127.0.0.1/')" npx prisma migrate dev`
 > 临时指定，不要改 `.env.local`。
 
+## 7.1 Git 与部署（单分支 main）
+
+**Vercel 的 Production 分支是 `main`。所有改动直接推 `main`，push 即自动部署。**
+
+```bash
+git checkout main          # 开发就在 main 上
+git add -A && git commit -m "feat: xxx"
+git push origin main       # Vercel 自动部署
+```
+
+| 分支 | 用途 |
+| --- | --- |
+| **`main`** | **唯一开发 + 生产分支**，所有提交推这里 |
+| `outfithub-mvp` | 历史遗留，与 main 内容一致，**不再使用**，可删 |
+| `m5-context-p0` | 旧网店版本存档，只读，不要动 |
+
+**历史教训（2026-11-19）**：曾同时维护 `main` 和 `outfithub-mvp`，但 Vercel 只监听其中一个，导致「改了代码线上不更新」。单分支后不会再出现。若线上没自动部署新提交，去 **Vercel → Settings → Git → Production Branch** 确认是 `main`。
+
+**其他部署注意**：
+
+- `postinstall: prisma generate` 必须保留——`src/generated/prisma` 被 gitignore，Vercel 构建时需要现场生成。
+- 不要配 `AUTH_URL` / `NEXT_PUBLIC_APP_URL`：代码用 `trustHost: true` 自动识别域名，且未读取这两个变量。Vercel Redeploy 会换域名，写死反而出错。
+- COS 桶隔离：本地 `outfitexpert-temp-1521078213`，线上 `outfithub-prod-1521078213`。
+
 ## 8. 付费接口测试规则（重要）
 
 试穿 `1.00 元/张`、去背景约 `0.01 元/张`，**不要重复付费测试**。
