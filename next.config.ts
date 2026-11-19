@@ -20,6 +20,8 @@ const nextConfig: NextConfig = {
   ],
   experimental: {
     authInterrupts: true,
+    // 已按安全提示升级到 16.4.6，关闭构建时的安全升级提示（否则每次 build 都要重跑一次）
+    agentUpgrade: "security",
   },
   turbopack: {
     rules: {
